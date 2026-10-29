@@ -3,3 +3,5 @@
 *.csv
 !scenarios/*.toml
 .DS_Store
+/dist
+/dist-single

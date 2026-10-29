@@ -12,7 +12,7 @@ It ships as three crates:
 |-------|------------|
 | `nbody-core` | the physics library (no UI dependencies) |
 | `nbody` | a command-line driver with an interactive shell |
-| `nbody-gui` | an interactive window: orbit view, body editor, projectile panel |
+| `nbody-gui` | an interactive window (`nbody-desktop`) and, compiled to WebAssembly, the same app in a web page |
 
 Everything is Newtonian point-mass gravity with finite-size spheres for
 collisions. There is no relativity, no tides, no spin dynamics, no
@@ -42,7 +42,7 @@ You need a Rust toolchain (`rustup`, stable). Then:
 ```sh
 git clone https://github.com/BlankRelax/n-body-problem.git
 cd n-body-problem
-cargo build --release            # builds nbody (CLI) and nbody-gui
+cargo build --release            # builds nbody (CLI) and nbody-desktop (GUI)
 
 # Integrate the Solar System for 12 years and report energy drift and orbital elements
 ./target/release/nbody run solar-system
@@ -54,7 +54,7 @@ cargo build --release            # builds nbody (CLI) and nbody-gui
 ./target/release/nbody sweep projectile-capture --b 19:24:41 --v-inf 0.5:2:4
 
 # Open the interactive window
-./target/release/nbody-gui
+./target/release/nbody-desktop
 ```
 
 `nbody preset` lists the built-in scenarios (Solar System, Earth–Moon, the
@@ -62,6 +62,25 @@ figure-eight choreography, Burrau's Pythagorean problem, a binary star with
 a planet, a 200-star Plummer cluster, and two projectile experiments).
 `nbody repl` opens a shell where you can `add`, `set`, `run`, `projectile`
 and `save` interactively.
+
+### In the browser
+
+The GUI also compiles to WebAssembly and runs in any browser with WebGL2
+(it is live at [hassaanmirza.co.uk/n-body](https://hassaanmirza.co.uk/n-body)).
+You need the `wasm32-unknown-unknown` target and `wasm-bindgen-cli` at
+exactly the version pinned in `crates/nbody-gui/Cargo.toml`:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
+node scripts/build.mjs      # dist/ (a static site) and dist-single/n-body-problem.html
+```
+
+`dist/` is a static site: serve it from any web server, or embed the module
+elsewhere by importing `pkg/nbody_gui.js` and calling its exported
+`start(container)`. `dist-single/n-body-problem.html` is one self-contained
+file that opens straight from disk. Pages with a Content-Security-Policy
+need `'wasm-unsafe-eval'` in `script-src`.
 
 ---
 
@@ -289,7 +308,7 @@ save my_system.toml
 
 ## 7. The GUI
 
-`nbody-gui` opens with the Solar System loaded.
+`nbody-desktop` (or the web build at `/n-body`) opens with the Solar System loaded.
 
 * **Top bar:** choose a preset or open/save a scenario file; run / pause /
   step / reset; simulation speed (log slider); integrator; collision mode;

@@ -5,12 +5,22 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Interactive egui front-end for nbody-core"
+description = "Interactive egui front-end for nbody-core, for the desktop and the web"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "nbody-gui"
+name = "nbody-desktop"
 path = "src/main.rs"
 
 [dependencies]
 nbody-core = { path = "../nbody-core" }
 eframe = "0.31"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Must match the wasm-bindgen CLI used by scripts/build.mjs exactly.
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+console_error_panic_hook = "0.1"
+web-sys = { version = "0.3", features = ["Document", "Element", "HtmlCanvasElement", "HtmlElement", "Node", "Window"] }

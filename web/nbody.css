@@ -1,0 +1,30 @@
+/* The simulator's canvas fills whatever box it is started in. */
+
+.nbody-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #08090e;
+  touch-action: none;
+}
+
+/* The standalone page: the simulator fills the window. */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #000;
+  color: #e3eadf;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.game {
+  position: fixed;
+  inset: 0;
+}
+
+.noscript {
+  padding: 24px;
+  text-align: center;
+}

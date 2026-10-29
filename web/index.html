@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <title>N-body problem</title>
+    <meta name="description" content="A Newtonian gravity sandbox: build a planetary system body by body, change masses, materials and internal layers, and fire projectiles at it to see whether they are captured, ejected or swallowed. Written in Rust, drawn with WebGL2." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='5' fill='%23ffd746'/%3E%3Ccircle cx='27' cy='16' r='2' fill='%23a07350'/%3E%3Cellipse cx='16' cy='16' rx='11' ry='4' fill='none' stroke='%239696a5' stroke-width='1.2'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="nbody.css" />
+  </head>
+  <body>
+    <main id="game" class="game" aria-label="N-body problem"></main>
+    <noscript><p class="noscript">This simulator needs JavaScript and WebGL2.</p></noscript>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
