@@ -1,0 +1,59 @@
+name = "Comet flyby"
+description = "A 10-km icy comet nucleus passes the Sun at 3 au/yr with a 0.3 au impact parameter: a pure hyperbolic flyby, deflected by the Rutherford angle 2 atan(GM / b v^2)."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 30.0
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.01
+dt_min = 0.00000001
+dt_max = 0.002
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Earth"
+kind = "planet"
+mass = 0.00000300351526550564
+radius = 0.00004258750455597226
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.00000261
+e = 0.01671123
+inclination = -0.00001531
+raan = 0.0
+arg_periapsis = 102.93768193
+mean_anomaly = -2.4731102699999923
+
+[projectile]
+name = "Comet"
+radius = 0.00000003342293561134223
+material = "ice"
+v_infinity = 3.0
+impact_parameter = 0.3
+direction = [
+    1.0,
+    0.0,
+    0.0,
+]
+start_distance = 30.0
+max_time = 30.0

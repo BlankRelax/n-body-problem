@@ -1,0 +1,18 @@
+[package]
+name = "nbody-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Newtonian N-body gravitational dynamics: symplectic integrators, Barnes-Hut, layered spherical bodies, collisions and projectile capture/ejection analysis"
+
+[dependencies]
+serde.workspace = true
+toml.workspace = true
+serde_json.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+approx = "0.5"

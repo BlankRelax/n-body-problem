@@ -1,0 +1,160 @@
+name = "Solar System"
+description = "Sun and the eight planets from JPL's J2000 mean elements. Two-layer planets (core + mantle) reproduce each body's bulk mass and radius."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.0005
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 12.0
+barycentric = true
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Mercury"
+kind = "planet"
+mass = 0.00000016601205952315097
+radius = 0.000016308387202198327
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 0.38709927
+e = 0.20563593
+inclination = 7.00497902
+raan = 48.33076593
+arg_periapsis = 29.12703035
+mean_anomaly = 174.79252722
+
+[[bodies]]
+name = "Venus"
+kind = "planet"
+mass = 0.000002447861923991813
+radius = 0.000040453784346544176
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 0.72333566
+e = 0.00677672
+inclination = 3.39467605
+raan = 76.67984255
+arg_periapsis = 54.92262462999999
+mean_anomaly = 50.37663232
+
+[[bodies]]
+name = "Earth"
+kind = "planet"
+mass = 0.00000300351526550564
+radius = 0.00004258750455597226
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.00000261
+e = 0.01671123
+inclination = -0.00001531
+raan = 0.0
+arg_periapsis = 102.93768193
+mean_anomaly = -2.4731102699999923
+
+[[bodies]]
+name = "Mars"
+kind = "planet"
+mass = 0.00000032271545459574447
+radius = 0.000022657408050928896
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.52371034
+e = 0.0933941
+inclination = 1.84969142
+raan = 49.55953891
+arg_periapsis = -73.5031685
+mean_anomaly = 19.390197540000003
+
+[[bodies]]
+name = "Jupiter"
+kind = "planet"
+mass = 0.000954603287955061
+radius = 0.0004673261703049093
+material = "gas"
+core = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 5.202887
+e = 0.04838624
+inclination = 1.30439695
+raan = 100.47390909
+arg_periapsis = -85.74542926000001
+mean_anomaly = 19.66796068
+
+[[bodies]]
+name = "Saturn"
+kind = "planet"
+mass = 0.0002858177392668735
+radius = 0.00038925687730393614
+material = "gas"
+core = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 9.53667594
+e = 0.05386179
+inclination = 2.48599187
+raan = 113.66242448
+arg_periapsis = -21.063546169999995
+mean_anomaly = -42.64463408
+
+[[bodies]]
+name = "Uranus"
+kind = "planet"
+mass = 0.00004365668076460797
+radius = 0.00016953449859497232
+material = "gas"
+core = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 19.18916464
+e = 0.04725744
+inclination = 0.77263783
+raan = 74.01692503
+arg_periapsis = 96.93735127000001
+mean_anomaly = 142.28382821000002
+
+[[bodies]]
+name = "Neptune"
+kind = "planet"
+mass = 0.00005150341720015892
+radius = 0.00016458790412449367
+material = "gas"
+core = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 30.06992276
+e = 0.00859048
+inclination = 1.77004347
+raan = 131.78422574
+arg_periapsis = -86.81946347000002
+mean_anomaly = -100.08479196

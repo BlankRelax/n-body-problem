@@ -1,0 +1,70 @@
+name = "Pythagorean problem"
+description = "Masses 3, 4, 5 at rest at the vertices of a 3-4-5 right triangle, G = 1. Chaotic close encounters until, near t = 60, the lightest body (mass 3) is ejected and masses 4 and 5 recoil as a tight binary."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 70.0
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.003
+dt_min = 0.0000000001
+dt_max = 0.01
+
+[[bodies]]
+name = "m3"
+kind = "star"
+mass = 3.0
+material = "plasma"
+position = [
+    1.0,
+    3.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    0.0,
+    0.0,
+]
+
+[[bodies]]
+name = "m4"
+kind = "star"
+mass = 4.0
+material = "plasma"
+position = [
+    -2.0,
+    -1.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    0.0,
+    0.0,
+]
+
+[[bodies]]
+name = "m5"
+kind = "star"
+mass = 5.0
+material = "plasma"
+position = [
+    1.0,
+    -1.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    0.0,
+    0.0,
+]

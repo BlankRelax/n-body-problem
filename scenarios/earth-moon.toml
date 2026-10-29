@@ -1,0 +1,41 @@
+name = "Earth and Moon"
+description = "The Earth-Moon system in km, kg and hours; one sidereal month is 655.7 h."
+
+[units]
+length = "km"
+mass = "kg"
+time = "hour"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.05
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 655.7
+barycentric = true
+
+[[bodies]]
+name = "Earth"
+kind = "planet"
+mass = 5972400000000000000000000.0
+radius = 6371.0
+material = "rock"
+core = "iron"
+
+[[bodies]]
+name = "Moon"
+kind = "moon"
+mass = 73420000000000000000000.0
+radius = 1737.4
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Earth"
+a = 384400.0
+e = 0.0549
+inclination = 5.145
+raan = 0.0
+arg_periapsis = 0.0

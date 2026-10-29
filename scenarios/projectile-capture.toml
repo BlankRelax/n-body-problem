@@ -1,0 +1,66 @@
+name = "Rogue planet meets Jupiter"
+description = "A rogue Earth-mass planet arrives at 1 au/yr (4.7 km/s) on a hyperbola whose periapsis lies on Jupiter's orbit; Jupiter is phased to be -2.5° from that point when the rogue arrives (after 32.07 yr). Jupiter can brake it into a bound orbit, fling it out faster, or swallow it: vary impact_parameter and v_infinity (or run `nbody sweep`) to map the regimes."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 120.0
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.01
+dt_min = 0.00000001
+dt_max = 0.002
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Jupiter"
+kind = "planet"
+mass = 0.000954603287955061
+radius = 0.0004673261703049093
+material = "gas"
+core = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 5.2029
+e = 0.0
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 0.0
+true_anomaly = 76.36864624601512
+
+[projectile]
+name = "Rogue"
+mass = 0.00000300351526550564
+radius = 0.00004258750455597226
+material = "rock"
+core = "iron"
+v_infinity = 1.0
+impact_parameter = 20.93477914114834
+direction = [
+    1.0,
+    0.0,
+    0.0,
+]
+offset_direction = [
+    0.0,
+    -1.0,
+    0.0,
+]
+start_distance = 60.0
+max_time = 120.0

@@ -1,0 +1,56 @@
+name = "Binary star with a planet"
+description = "Alpha-Centauri-like pair (1.1 + 0.9 solar masses, a = 23.4 au, e = 0.52) with an Earth-mass planet 1 au from the primary; S-type orbits here are stable for billions of years."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.001
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 160.0
+barycentric = true
+
+[[bodies]]
+name = "Alpha A"
+kind = "star"
+mass = 1.1
+radius = 0.005673570058373832
+material = "plasma"
+
+[[bodies]]
+name = "Alpha B"
+kind = "star"
+mass = 0.9
+radius = 0.0039994018444274556
+material = "plasma"
+
+[bodies.orbit]
+around = "Alpha A"
+a = 23.4
+e = 0.52
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 0.0
+mean_anomaly = 180.0
+
+[[bodies]]
+name = "Planet"
+kind = "planet"
+mass = 0.00000300351526550564
+radius = 0.00004258750455597226
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Alpha A"
+a = 1.0
+e = 0.02
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 0.0

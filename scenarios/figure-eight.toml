@@ -1,0 +1,66 @@
+name = "Figure eight"
+description = "Three equal masses chasing each other around a figure-eight (period 6.3259), G = 1."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+dt = 0.002
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 18.97774194
+barycentric = true
+
+[[bodies]]
+name = "A"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    -0.97000436,
+    0.24308753,
+    0.0,
+]
+velocity = [
+    0.466203685,
+    0.43236573,
+    0.0,
+]
+
+[[bodies]]
+name = "B"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    0.97000436,
+    -0.24308753,
+    0.0,
+]
+velocity = [
+    0.466203685,
+    0.43236573,
+    0.0,
+]
+
+[[bodies]]
+name = "C"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    0.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    -0.93240737,
+    -0.86473146,
+    0.0,
+]

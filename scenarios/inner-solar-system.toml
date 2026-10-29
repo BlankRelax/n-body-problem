@@ -1,0 +1,109 @@
+name = "Inner Solar System"
+description = "Sun, Mercury, Venus, Earth (with the Moon) and Mars."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.0001
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 2.0
+barycentric = true
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Mercury"
+kind = "planet"
+mass = 0.00000016601205952315097
+radius = 0.000016308387202198327
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 0.38709927
+e = 0.20563593
+inclination = 7.00497902
+raan = 48.33076593
+arg_periapsis = 29.12703035
+mean_anomaly = 174.79252722
+
+[[bodies]]
+name = "Venus"
+kind = "planet"
+mass = 0.000002447861923991813
+radius = 0.000040453784346544176
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 0.72333566
+e = 0.00677672
+inclination = 3.39467605
+raan = 76.67984255
+arg_periapsis = 54.92262462999999
+mean_anomaly = 50.37663232
+
+[[bodies]]
+name = "Earth"
+kind = "planet"
+mass = 0.00000300351526550564
+radius = 0.00004258750455597226
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.00000261
+e = 0.01671123
+inclination = -0.00001531
+raan = 0.0
+arg_periapsis = 102.93768193
+mean_anomaly = -2.4731102699999923
+
+[[bodies]]
+name = "Mars"
+kind = "planet"
+mass = 0.00000032271545459574447
+radius = 0.000022657408050928896
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.52371034
+e = 0.0933941
+inclination = 1.84969142
+raan = 49.55953891
+arg_periapsis = -73.5031685
+mean_anomaly = 19.390197540000003
+
+[[bodies]]
+name = "Moon"
+kind = "moon"
+mass = 0.000000036922860289569364
+radius = 0.000011613801666229197
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "Earth"
+a = 0.0025695552897999903
+e = 0.0549
+inclination = 5.145
+raan = 125.08
+arg_periapsis = 318.15
+mean_anomaly = 135.27

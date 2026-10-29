@@ -1,0 +1,16 @@
+[package]
+name = "nbody-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Interactive egui front-end for nbody-core"
+
+[[bin]]
+name = "nbody-gui"
+path = "src/main.rs"
+
+[dependencies]
+nbody-core = { path = "../nbody-core" }
+eframe = "0.31"
