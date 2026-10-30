@@ -68,3 +68,6 @@ velocity = [
     0.0,
     0.0,
 ]
+
+[view]
+corotating = false

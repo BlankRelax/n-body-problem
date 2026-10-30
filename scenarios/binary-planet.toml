@@ -54,3 +54,6 @@ e = 0.02
 inclination = 0.0
 raan = 0.0
 arg_periapsis = 0.0
+
+[view]
+corotating = false

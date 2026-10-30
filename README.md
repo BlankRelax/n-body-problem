@@ -57,9 +57,18 @@ cargo build --release            # builds nbody (CLI) and nbody-desktop (GUI)
 ./target/release/nbody-desktop
 ```
 
-`nbody preset` lists the built-in scenarios (Solar System, Earth–Moon, the
-figure-eight choreography, Burrau's Pythagorean problem, a binary star with
-a planet, a 200-star Plummer cluster, and two projectile experiments).
+`nbody preset` lists the 24 built-in scenarios, grouped as:
+
+| group | presets |
+|-------|---------|
+| Solar System | `solar-system`, `inner-solar-system`, `earth-moon`, `trappist-1` |
+| Lagrange points | `lagrange-points` (Sun, Jupiter, probes at L1–L5, Trojan swarms), `co-orbital` (tadpole and horseshoe orbits), `lagrange-triangle` (the equilateral solution) |
+| Choreographies | `figure-eight` and the Šuvakov–Dmitrašinović orbits `butterfly`, `moth`, `dragonfly`, `yin-yang`, `goggles` |
+| Chaos | `pythagorean`, `sitnikov` |
+| Rosettes | `klemperer` (five stars on a pentagon), `rosette` (eight petals of eccentric orbits) |
+| Stars and galaxies | `binary-planet`, `kepler-16` (circumbinary planet), `plummer`, `galaxy-collision` (tidal tails) |
+| Projectiles and impacts | `projectile-capture`, `projectile-flyby`, `giant-impact` (Theia hits the proto-Earth) |
+
 `nbody repl` opens a shell where you can `add`, `set`, `run`, `projectile`
 and `save` interactively.
 
@@ -310,26 +319,41 @@ save my_system.toml
 
 `nbody-desktop` (or the web build at `/n-body`) opens with the Solar System loaded.
 
-* **Top bar:** choose a preset or open/save a scenario file; run / pause /
-  step / reset; simulation speed (log slider); integrator; collision mode;
-  time step or adaptive stepping; barycentre; fit view; labels and trails.
+* **Top bar:** choose a preset (grouped by theme; it loads on selection) or
+  open/save a scenario file; run / pause / step / reset; simulation speed
+  (log slider); integrator; collision mode; time step or adaptive stepping;
+  barycentre; fit view; labels; trails and the simulated time they span;
+  the Lagrange-point overlay and the co-rotating view; full screen (also
+  F11; Esc leaves).
 * **Left panel:** the body list. Select one to edit its name, mass, radius,
   material, kind, position and velocity, inspect and edit its shells, put it
-  on a circular orbit around another body, follow it with the camera, or
-  delete it. The "Add a body" section creates a new body either on a
-  Keplerian orbit (semi-major axis, eccentricity, inclination) about any
-  existing body or at an explicit position and velocity.
-* **Right panel:** projectile mode. Set `v∞`, `b`, mass, material, approach
-  direction and which side of the system to pass on; the two-body periapsis
-  and deflection are predicted live. "Launch" injects it and runs; the
-  verdict, closest approach, closest miss distance, energy history and any
-  displaced bodies update as it flies. The outcome sweep runs a grid of
-  experiments on a copy of the system.
+  on a circular orbit around another body, park it at one of the pair's
+  Lagrange points, follow it with the camera, or delete it. The "Add a body"
+  section creates a new body either on a Keplerian orbit (semi-major axis,
+  eccentricity, inclination) about any existing body, at an explicit
+  position and velocity, or straight onto L1–L5. The "Lagrange points"
+  section picks the primary–secondary pair, reports the mass ratio and
+  Routh stability, and toggles the overlay and the co-rotating frame (in
+  which trails are drawn too, so Trojans trace tadpoles and horseshoe
+  orbits look like horseshoes).
+* **Right panel:** projectile mode. Either an arrival from infinity (set
+  `v∞`, `b`, mass, material, approach direction and which side of the
+  system to pass on; the two-body periapsis and deflection are predicted
+  live) or, with "aim by clicking" ticked, a launch from a point you click
+  on the view: drag from there to aim and fire, the drag's length setting
+  the speed (100 px = the local escape speed), with the predicted conic
+  drawn as you aim. "Launch" injects it and runs; the verdict (captured /
+  bound, ejected / escaped, merged), closest approach, closest miss
+  distance, energy history and any displaced bodies update as it flies.
+  The outcome sweep runs a grid of from-infinity experiments on a copy of
+  the system.
 * **Bottom:** clock, step counts, energy and virial ratio, relative drifts
   of energy / momentum / angular momentum, an energy-error sparkline and the
   event log (collisions, launches).
 * **Canvas:** drag to pan, scroll to zoom, right-drag to tilt into 3-D,
-  click to select, space to run/pause, F to fit, Delete to remove.
+  click to select (the selected body's osculating orbit is drawn), space to
+  run/pause, F to fit, Delete to remove, F11 for full screen; in aim mode,
+  click places the launch point, drag fires, shift-drag pans, Esc clears.
 
 ---
 
@@ -346,16 +370,16 @@ crates/nbody-core/src
   force/           direct summation and Barnes-Hut octree; softened potential; dynamical time
   integrator/      leapfrog, Yoshida 4, PEFRL, RK4
   collision.rs     merge / bounce / physical regimes with energy bookkeeping
-  orbit.rs         elements <-> state, Kepler's equation, Hill / Roche / SOI, hyperbolic flybys
+  orbit.rs         elements <-> state, Kepler's equation, Hill / Roche / SOI, hyperbolic flybys, Lagrange points
   diagnostics.rs   energy, momentum, angular momentum, virial ratio; conservation tracker
-  projectile.rs    hyperbolic injection, approach geometry, outcome tracker, sweeps
+  projectile.rs    hyperbolic injection, launches from a point, approach geometry, outcome tracker, sweeps
   simulation.rs    the driver: time-step policy, stepping, collisions, trackers
   scenario.rs      TOML format, build to a Simulation, snapshots
-  presets.rs       built-in scenarios (incl. the phased Jupiter encounter)
+  presets.rs       built-in scenarios (incl. the phased Jupiter encounter), grouped for menus
 crates/nbody-cli/src
   main.rs          clap subcommands     repl.rs  interactive shell     report.rs  tables
 crates/nbody-gui/src
-  main.rs          eframe/egui application
+  lib.rs           eframe/egui application (desktop and WebAssembly)     main.rs  desktop entry point
 ```
 
 The core is `#![forbid(unsafe_code)]` and depends only on `serde`, `toml`,

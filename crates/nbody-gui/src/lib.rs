@@ -5,9 +5,11 @@
 //! web page (`start`, exported through wasm-bindgen; see `scripts/build.mjs`).
 //!
 //! Left panel: bodies (select, edit mass / radius / material / layers,
-//! place on orbits, add, delete). Right panel: projectile mode and outcome
-//! sweeps. Bottom: conservation diagnostics. Centre: the orbit view
-//! (drag to pan, scroll to zoom, right-drag to tilt, click to select).
+//! place on orbits or at Lagrange points, add, delete). Right panel:
+//! projectile mode (from infinity, or aimed by clicking on the view) and
+//! outcome sweeps. Bottom: conservation diagnostics. Centre: the orbit view
+//! (drag to pan, scroll to zoom, right-drag to tilt, click to select), which
+//! can draw the Lagrange points of a chosen pair and turn with them.
 
 use eframe::egui::{self, Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 use nbody_core::body::{Body, BodyId, BodyKind};
@@ -35,7 +37,7 @@ pub fn run_native() -> eframe::Result {
         "N-body problem",
         options,
         Box::new(|cc| {
-            cc.egui_ctx.set_visuals(egui::Visuals::dark());
+            cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
             Ok(Box::new(App::new()))
         }),
     )
@@ -50,6 +52,9 @@ fn drag(ui: &mut egui::Ui, v: &mut f64, min_speed: f64) -> egui::Response {
 fn c32(c: [u8; 3]) -> Color32 {
     Color32::from_rgb(c[0], c[1], c[2])
 }
+
+const TEAL: Color32 = Color32::from_rgb(90, 200, 220);
+const ORANGE: Color32 = Color32::from_rgb(255, 160, 60);
 
 /// Compact number formatting for labels.
 fn sig(x: f64) -> String {
@@ -73,19 +78,28 @@ fn sig(x: f64) -> String {
     }
 }
 
+/// Orbit normal of a pair (their relative angular momentum), or +z.
+fn pair_normal(p: &Body, s: &Body) -> Vec3 {
+    let h = (s.position - p.position).cross(s.velocity - p.velocity);
+    if h.norm_sq() > 0.0 { h } else { Vec3::Z }
+}
+
 #[derive(Clone, Copy)]
 struct View {
     center: Vec3,
     /// Pixels per metre.
     scale: f64,
+    /// The user's turn of the view...
     yaw: f64,
+    /// ...plus the turn that keeps a co-rotating frame still.
+    frame_yaw: f64,
     pitch: f64,
 }
 
 impl View {
     fn rotate(&self, p: Vec3) -> Vec3 {
         let d = p - self.center;
-        let (sy, cy) = self.yaw.sin_cos();
+        let (sy, cy) = (self.yaw + self.frame_yaw).sin_cos();
         let (sp, cp) = self.pitch.sin_cos();
         let x1 = cy * d.x - sy * d.y;
         let y1 = sy * d.x + cy * d.y;
@@ -94,7 +108,7 @@ impl View {
     }
 
     fn unrotate(&self, v: Vec3) -> Vec3 {
-        let (sy, cy) = self.yaw.sin_cos();
+        let (sy, cy) = (self.yaw + self.frame_yaw).sin_cos();
         let (sp, cp) = self.pitch.sin_cos();
         let y1 = cp * v.y + sp * v.z;
         let z1 = -sp * v.y + cp * v.z;
@@ -107,9 +121,49 @@ impl View {
         (Pos2::new(rect.center().x + (v.x * self.scale) as f32, rect.center().y - (v.y * self.scale) as f32), v.z)
     }
 
+    /// The world point in the plane z = 0 that sits under a screen position.
+    fn unproject(&self, pos: Pos2, rect: Rect) -> Vec3 {
+        let vx = (pos.x - rect.center().x) as f64 / self.scale;
+        let vy = -(pos.y - rect.center().y) as f64 / self.scale;
+        let (sp, cp) = self.pitch.sin_cos();
+        // Depth along the line of sight at which the world z vanishes.
+        let t = if cp.abs() > 1e-3 { (sp * vy - self.center.z) / cp } else { 0.0 };
+        self.center + self.unrotate(Vec3::new(vx, vy, t))
+    }
+
     fn pan(&mut self, delta: Vec2) {
         let d = Vec3::new(-delta.x as f64 / self.scale, delta.y as f64 / self.scale, 0.0);
         self.center += self.unrotate(d);
+    }
+}
+
+/// The frame co-rotating with a pair of bodies: origin at their barycentre,
+/// x-axis from the primary towards the secondary.
+#[derive(Clone, Copy)]
+struct Frame {
+    origin: Vec3,
+    theta: f64,
+    cos: f64,
+    sin: f64,
+}
+
+impl Frame {
+    fn new(p: &Body, s: &Body) -> Frame {
+        let m = p.mass() + s.mass();
+        let origin = (p.position * p.mass() + s.position * s.mass()) / m;
+        let d = s.position - p.position;
+        let theta = d.y.atan2(d.x);
+        let (sin, cos) = theta.sin_cos();
+        Frame { origin, theta, cos, sin }
+    }
+
+    fn to_frame(&self, p: Vec3) -> Vec3 {
+        let d = p - self.origin;
+        Vec3::new(self.cos * d.x + self.sin * d.y, -self.sin * d.x + self.cos * d.y, d.z)
+    }
+
+    fn to_world(&self, q: Vec3) -> Vec3 {
+        self.origin + Vec3::new(self.cos * q.x - self.sin * q.y, self.sin * q.x + self.cos * q.y, q.z)
     }
 }
 
@@ -129,11 +183,23 @@ pub struct App {
     lagging: bool,
 
     view: View,
+    /// Size of the orbit view on the last frame, points.
+    canvas_size: Vec2,
     follow: Option<BodyId>,
     show_labels: bool,
     show_trails: bool,
+    /// Simulated time the trails cover, display time units.
+    trail_span: f64,
     trail_len: usize,
+    last_trail_time: f64,
+    /// Trail points are stored in the co-rotating frame of this pair (or inertially for `None`).
+    trail_frame: Option<(BodyId, BodyId)>,
     trails: HashMap<BodyId, VecDeque<Vec3>>,
+
+    show_lagrange: bool,
+    corotate: bool,
+    lagrange_primary: Option<BodyId>,
+    lagrange_secondary: Option<BodyId>,
 
     selected: Option<BodyId>,
     edit_loaded_for: Option<BodyId>,
@@ -169,6 +235,12 @@ pub struct App {
     sweep_v: [f64; 2],
     sweep_nv: usize,
     sweep_result: String,
+    /// Place projectiles by clicking on the view.
+    aim_mode: bool,
+    /// Launch point chosen on the view, metres.
+    spawn: Option<Vec3>,
+    /// An aiming drag in progress: screen positions of its start and the pointer.
+    aim: Option<(Pos2, Pos2)>,
 
     fixed_dt: f64,
     adaptive: bool,
@@ -183,6 +255,18 @@ pub struct App {
     energy_history: VecDeque<f32>,
     log: VecDeque<String>,
     error: Option<String>,
+
+    /// The element the simulator was started in; full-screen mode fills it.
+    #[cfg(target_arch = "wasm32")]
+    host: Option<web_sys::HtmlElement>,
+    #[cfg(target_arch = "wasm32")]
+    was_fullscreen: bool,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
@@ -200,12 +284,20 @@ impl App {
             max_steps_per_frame: if cfg!(target_arch = "wasm32") { 6_000 } else { 20_000 },
             steps_last_frame: 0,
             lagging: false,
-            view: View { center: Vec3::ZERO, scale: 1.0, yaw: 0.0, pitch: 0.0 },
+            view: View { center: Vec3::ZERO, scale: 1.0, yaw: 0.0, frame_yaw: 0.0, pitch: 0.0 },
+            canvas_size: Vec2::new(800.0, 800.0),
             follow: None,
             show_labels: true,
             show_trails: true,
+            trail_span: 1.0,
             trail_len: 2500,
+            last_trail_time: f64::NEG_INFINITY,
+            trail_frame: None,
             trails: HashMap::new(),
+            show_lagrange: false,
+            corotate: false,
+            lagrange_primary: None,
+            lagrange_secondary: None,
             selected: None,
             edit_loaded_for: None,
             edit_name: String::new(),
@@ -238,6 +330,9 @@ impl App {
             sweep_v: [0.5, 2.0],
             sweep_nv: 4,
             sweep_result: String::new(),
+            aim_mode: false,
+            spawn: None,
+            aim: None,
             fixed_dt: 1.0,
             adaptive: false,
             eta: 0.01,
@@ -249,6 +344,10 @@ impl App {
             energy_history: VecDeque::new(),
             log: VecDeque::new(),
             error: None,
+            #[cfg(target_arch = "wasm32")]
+            host: None,
+            #[cfg(target_arch = "wasm32")]
+            was_fullscreen: false,
         };
         app.load_scenario(scenario, "Solar System".into());
         app
@@ -301,6 +400,7 @@ impl App {
                 self.new_around = built.system.most_massive().map(|b| b.id());
                 self.orbit_target = self.new_around;
                 self.sim = Simulation::new(built.system, built.config);
+                let hints = scenario.view.clone();
                 self.scenario = scenario;
                 self.scenario_name = name;
                 self.running = false;
@@ -308,13 +408,31 @@ impl App {
                 self.edit_loaded_for = None;
                 self.follow = None;
                 self.trails.clear();
+                self.trail_frame = None;
+                self.trail_span = hints.trail_span.unwrap_or(duration / self.units.time).max(1e-9);
+                self.last_trail_time = f64::NEG_INFINITY;
+                self.show_lagrange = hints.lagrange_points.is_some();
+                self.corotate = hints.corotating;
+                self.default_lagrange_pair(hints.lagrange_points.as_ref());
+                self.spawn = None;
+                self.aim = None;
                 self.energy_history.clear();
                 self.sweep_result.clear();
                 self.error = None;
                 self.log_line(format!("loaded '{}' ({} bodies)", self.scenario_name, self.sim.system.len()));
                 self.fit_view();
+                self.view.yaw = 0.0;
+                self.view.pitch = hints.tilt.unwrap_or(0.0).to_radians();
             }
             Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    fn load_preset(&mut self) {
+        let (n, _) = presets::names()[self.preset_index];
+        if let Some(sc) = presets::preset(n) {
+            let name = sc.name.clone();
+            self.load_scenario(sc, name);
         }
     }
 
@@ -334,7 +452,43 @@ impl App {
     fn fit_view(&mut self) {
         let ext = self.sim.system.extent().max(self.sim.system.bodies().iter().map(|b| b.radius()).fold(0.0, f64::max) * 4.0);
         self.view.center = self.sim.system.center_of_mass();
-        self.view.scale = if ext > 0.0 { 380.0 / ext } else { 1.0 };
+        let radius_px = 0.46 * self.canvas_size.min_elem().max(200.0) as f64;
+        self.view.scale = if ext > 0.0 { radius_px / ext } else { 1.0 };
+    }
+
+    // ---- Lagrange pair and co-rotating frame --------------------------------------------
+
+    /// Choose the pair whose Lagrange points are shown: by name if the
+    /// scenario says so, otherwise the two most massive bodies.
+    fn default_lagrange_pair(&mut self, names: Option<&[String; 2]>) {
+        let sys = &self.sim.system;
+        let by_name = names.and_then(|[p, s]| Some((sys.find(p)?.id(), sys.find(s)?.id())));
+        let (p, s) = match by_name {
+            Some((p, s)) => (Some(p), Some(s)),
+            None => {
+                let mut sorted: Vec<&Body> = sys.bodies().iter().collect();
+                sorted.sort_by(|a, b| b.mass().partial_cmp(&a.mass()).unwrap_or(std::cmp::Ordering::Equal));
+                (sorted.first().map(|b| b.id()), sorted.get(1).map(|b| b.id()))
+            }
+        };
+        self.lagrange_primary = p;
+        self.lagrange_secondary = s;
+    }
+
+    fn lagrange_pair(&self) -> Option<(&Body, &Body)> {
+        let p = self.sim.system.get(self.lagrange_primary?)?;
+        let s = self.sim.system.get(self.lagrange_secondary?)?;
+        if p.id() == s.id() {
+            return None;
+        }
+        Some((p, s))
+    }
+
+    fn frame(&self) -> Option<Frame> {
+        if !self.corotate {
+            return None;
+        }
+        self.lagrange_pair().map(|(p, s)| Frame::new(p, s))
     }
 
     // ---- unit helpers -----------------------------------------------------------------
@@ -354,12 +508,14 @@ impl App {
 
     // ---- stepping ---------------------------------------------------------------------
 
+    fn trail_interval(&self) -> f64 {
+        (self.trail_span * self.units.time / self.trail_len as f64).max(f64::MIN_POSITIVE)
+    }
+
     fn advance_frame(&mut self, real_dt: f64) {
         let budget = self.time_scale * self.units.time * real_dt.clamp(0.0, 0.1);
         let target = self.sim.system.time + budget;
-        let nominal = self.sim.config().timestep.nominal_dt().max(1e-300);
-        let expected = (budget / nominal).ceil() as usize;
-        let stride = (expected / 60).max(1);
+        let trail_interval = self.trail_interval();
         let mut steps = 0;
         while self.sim.system.time < target && steps < self.max_steps_per_frame {
             let dt = self.sim.choose_dt().min(target - self.sim.system.time);
@@ -374,7 +530,7 @@ impl App {
                 }
             }
             steps += 1;
-            if steps % stride == 0 {
+            if self.sim.system.time - self.last_trail_time >= trail_interval {
                 self.push_trails();
             }
         }
@@ -389,14 +545,21 @@ impl App {
     }
 
     fn push_trails(&mut self) {
+        self.last_trail_time = self.sim.system.time;
         if !self.show_trails {
             return;
+        }
+        let frame = self.frame();
+        let key = frame.and_then(|_| Some((self.lagrange_primary?, self.lagrange_secondary?)));
+        if key != self.trail_frame {
+            self.trails.clear();
+            self.trail_frame = key;
         }
         let ids: Vec<BodyId> = self.sim.system.ids();
         self.trails.retain(|id, _| ids.contains(id));
         for b in self.sim.system.bodies() {
             let t = self.trails.entry(b.id()).or_default();
-            t.push_back(b.position);
+            t.push_back(frame.map_or(b.position, |f| f.to_frame(b.position)));
             while t.len() > self.trail_len {
                 t.pop_front();
             }
@@ -412,25 +575,54 @@ impl App {
         self.sim.set_timestep(policy);
     }
 
+    // ---- full screen ------------------------------------------------------------------
+
+    fn is_fullscreen(&self, ctx: &egui::Context) -> bool {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = ctx;
+            self.host_fullscreen()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ctx.input(|i| i.viewport().fullscreen.unwrap_or(false))
+        }
+    }
+
+    fn set_fullscreen(&mut self, ctx: &egui::Context, on: bool) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = ctx;
+            self.set_host_fullscreen(on);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(on));
+        }
+    }
+
     // ---- panels -----------------------------------------------------------------------
 
     fn top_panel(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_wrapped(|ui| {
             let names = presets::names();
+            let mut chosen = self.preset_index;
             egui::ComboBox::from_id_salt("preset")
                 .selected_text(names[self.preset_index].0)
-                .width(170.0)
+                .width(190.0)
                 .show_ui(ui, |ui| {
-                    for (i, (n, d)) in names.iter().enumerate() {
-                        ui.selectable_value(&mut self.preset_index, i, *n).on_hover_text(*d);
+                    for (group, members) in presets::groups() {
+                        ui.add_enabled(false, egui::Label::new(egui::RichText::new(*group).small().strong()));
+                        for m in members.iter() {
+                            if let Some(i) = names.iter().position(|(n, _)| n == m) {
+                                ui.selectable_value(&mut chosen, i, *m).on_hover_text(names[i].1);
+                            }
+                        }
                     }
                 });
-            if ui.button("Load preset").clicked() {
-                let (n, _) = names[self.preset_index];
-                if let Some(sc) = presets::preset(n) {
-                    let name = sc.name.clone();
-                    self.load_scenario(sc, name);
-                }
+            if chosen != self.preset_index {
+                self.preset_index = chosen;
+                self.load_preset();
             }
             #[cfg(not(target_arch = "wasm32"))]
             {
@@ -459,7 +651,7 @@ impl App {
                 self.sim.step();
                 self.push_trails();
             }
-            if ui.button("Reset").clicked() {
+            if ui.button("Reset").on_hover_text("start the scenario again").clicked() {
                 self.reset();
             }
             ui.separator();
@@ -506,9 +698,26 @@ impl App {
             }
             ui.checkbox(&mut self.show_labels, "labels");
             ui.checkbox(&mut self.show_trails, "trails");
+            ui.label("spanning");
+            if drag(ui, &mut self.trail_span, 1e-9).on_hover_text("simulated time the trails cover").changed() {
+                self.trail_span = self.trail_span.max(1e-9);
+            }
+            ui.label(&self.unit_spec.time);
+            ui.separator();
+            let pair_ok = self.lagrange_pair().is_some();
+            ui.add_enabled(pair_ok, egui::Checkbox::new(&mut self.show_lagrange, "L points"))
+                .on_hover_text("draw the Lagrange points L1-L5 of the chosen pair (set it under Bodies > Lagrange points)");
+            ui.add_enabled(pair_ok, egui::Checkbox::new(&mut self.corotate, "co-rotate"))
+                .on_hover_text("turn the view with the pair, so bodies that keep station with them stand still");
             ui.separator();
             ui.checkbox(&mut self.show_bodies, "bodies panel");
             ui.checkbox(&mut self.show_projectile, "projectile panel");
+            let fs = self.is_fullscreen(ui.ctx());
+            let label = if fs { "⤡ Exit full screen (F11)" } else { "⛶ Full screen (F11)" };
+            if ui.button(label).on_hover_text("fill the screen with the simulator; Esc or F11 brings the page back").clicked() {
+                let ctx = ui.ctx().clone();
+                self.set_fullscreen(&ctx, !fs);
+            }
         });
     }
 
@@ -541,6 +750,7 @@ impl App {
         }
         ui.separator();
         ui.collapsing("Add a body", |ui| self.add_body_ui(ui));
+        ui.collapsing("Lagrange points", |ui| self.lagrange_ui(ui));
     }
 
     fn material_combo(ui: &mut egui::Ui, id: impl std::hash::Hash, current: &mut Material) -> bool {
@@ -573,6 +783,80 @@ impl App {
                 ui.selectable_value(current, Some(b.id()), b.name.clone());
             }
         });
+    }
+
+    /// Park a body at one of the pair's Lagrange points with the co-rotating velocity.
+    fn park_at_lagrange(&mut self, id: BodyId, k: usize) {
+        let Some((p, s)) = self.lagrange_pair().map(|(p, s)| (p.clone(), s.clone())) else { return };
+        if p.id() == id || s.id() == id {
+            return;
+        }
+        let pts = orbit::lagrange_points(p.position, p.mass(), s.position, s.mass(), pair_normal(&p, &s));
+        let v = orbit::corotating_velocity(p.position, p.velocity, p.mass(), s.position, s.velocity, s.mass(), pts[k]);
+        if let Some(b) = self.sim.system.get_mut(id) {
+            b.position = pts[k];
+            b.velocity = v;
+        }
+        self.sim.reset_baseline();
+        self.trails.remove(&id);
+        self.log_line(format!("parked {} at L{}", self.sim.system.get(id).map(|b| b.name.as_str()).unwrap_or("?"), k + 1));
+    }
+
+    fn lagrange_ui(&mut self, ui: &mut egui::Ui) {
+        ui.small("The five points where a small body keeps station with a pair of bodies on a circular orbit. L4 and L5 are stable when the secondary carries under 3.85% of the pair's mass; L1-L3 are saddle points.");
+        ui.horizontal(|ui| {
+            ui.label("primary");
+            let mut p = self.lagrange_primary;
+            self.body_combo(ui, "lag_primary", &mut p, None);
+            self.lagrange_primary = p;
+            ui.label("secondary");
+            let mut s = self.lagrange_secondary;
+            self.body_combo(ui, "lag_secondary", &mut s, self.lagrange_primary);
+            self.lagrange_secondary = s;
+        });
+        if let Some((p, s)) = self.lagrange_pair().map(|(p, s)| (p.clone(), s.clone())) {
+            let mu = s.mass() / (p.mass() + s.mass());
+            let a = s.position.distance(p.position);
+            let el = orbit::elements_from_state(self.sim.system.g * (p.mass() + s.mass()), s.position - p.position, s.velocity - p.velocity);
+            let [l1, l2, l3] = orbit::collinear_lagrange_points(mu);
+            ui.small(format!(
+                "μ = m₂/(m₁+m₂) = {:.5}: L4/L5 {}; L1 is {} from {} towards {}, L2 {} beyond it, L3 {} beyond {}.",
+                mu,
+                if mu < orbit::ROUTH_MASS_RATIO { "stable" } else { "unstable (above Routh's 0.0385)" },
+                self.fmt_len((1.0 - mu - l1) * a),
+                s.name,
+                p.name,
+                self.fmt_len((l2 - 1.0 + mu) * a),
+                self.fmt_len((-l3 - mu) * a),
+                p.name
+            ));
+            if el.elements.e > 0.05 {
+                ui.small(format!("The pair's orbit has e = {:.3}: the points shown are those of the instantaneous circular problem and drift as it goes round.", el.elements.e));
+            }
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.show_lagrange, "draw L1-L5");
+                ui.checkbox(&mut self.corotate, "co-rotating view").on_hover_text("the view turns with the pair; trails are drawn in that frame too");
+            });
+            if let Some(id) = self.selected {
+                if id != p.id() && id != s.id() {
+                    let name = self.sim.system.get(id).map(|b| b.name.clone()).unwrap_or_default();
+                    ui.horizontal(|ui| {
+                        ui.label(format!("park {name} at"));
+                        for k in 0..5 {
+                            if ui.small_button(format!("L{}", k + 1)).clicked() {
+                                self.park_at_lagrange(id, k);
+                            }
+                        }
+                    });
+                } else {
+                    ui.small("Select a body other than the pair to park it at a Lagrange point.");
+                }
+            } else {
+                ui.small("Select a body (or add one) to park it at a Lagrange point.");
+            }
+        } else {
+            ui.small("Choose two different bodies.");
+        }
     }
 
     fn body_editor(&mut self, ui: &mut egui::Ui, id: BodyId) {
@@ -627,7 +911,6 @@ impl App {
             ui.end_row();
         });
         {
-            let g = self.sim.system.g;
             let b = self.sim.system.get_mut(id).unwrap();
             if rename && !self.edit_name.trim().is_empty() {
                 b.name = self.edit_name.trim().to_string();
@@ -656,7 +939,6 @@ impl App {
                 b.velocity = Vec3::new(vel[0], vel[1], vel[2]) * u_vel;
                 changed = true;
             }
-            let _ = g;
         }
         let body = self.sim.system.get(id).unwrap().clone();
         let s = body.structure();
@@ -724,6 +1006,18 @@ impl App {
                 changed = true;
             }
         });
+        if let Some((p, s)) = self.lagrange_pair().map(|(p, s)| (p.id(), s.id())) {
+            if id != p && id != s {
+                ui.horizontal(|ui| {
+                    ui.label("park at");
+                    for k in 0..5 {
+                        if ui.small_button(format!("L{}", k + 1)).on_hover_text("move to this Lagrange point of the pair chosen under 'Lagrange points', co-rotating with it").clicked() {
+                            self.park_at_lagrange(id, k);
+                        }
+                    }
+                });
+            }
+        }
         if let Some(t) = self.orbit_target {
             if let (Some(p), Some(b)) = (self.sim.system.get(t), self.sim.system.get(id)) {
                 if p.id() != b.id() {
@@ -825,6 +1119,22 @@ impl App {
                 self.sim.reset_baseline();
             }
         });
+        if self.lagrange_pair().is_some() {
+            ui.horizontal(|ui| {
+                ui.label("or add at");
+                for k in 0..5 {
+                    if ui.small_button(format!("L{}", k + 1)).on_hover_text("add it parked at this Lagrange point of the chosen pair").clicked() {
+                        match self.build_new_body() {
+                            Ok(id) => {
+                                self.selected = Some(id);
+                                self.park_at_lagrange(id, k);
+                            }
+                            Err(e) => self.error = Some(e),
+                        }
+                    }
+                }
+            });
+        }
     }
 
     fn build_new_body(&mut self) -> Result<BodyId, String> {
@@ -856,65 +1166,163 @@ impl App {
         Ok(self.sim.system.add(body))
     }
 
+    // ---- projectiles --------------------------------------------------------------------
+
+    /// Mutual escape speed from the barycentre at `p`: the yardstick for aiming drags.
+    fn reference_speed(&self, p: Vec3) -> f64 {
+        let com = self.sim.system.center_of_mass();
+        let r_min = self.sim.system.bodies().iter().map(|b| b.radius()).fold(0.0, f64::max).max(1e-3 * self.units.length);
+        let r = (p - com).norm().max(r_min);
+        (2.0 * self.sim.system.g * self.sim.system.total_mass() / r).sqrt()
+    }
+
+    /// Velocity of a projectile launched from the spawn point with the panel's speed and heading, relative to the barycentre.
+    fn aim_velocity(&self) -> Vec3 {
+        let (s, c) = self.p_angle.to_radians().sin_cos();
+        Vec3::new(c, s, 0.0) * (self.p_v_inf * self.units.velocity())
+    }
+
+    /// Turn an aiming drag (screen start → pointer) into the panel's heading and speed.
+    fn set_aim_from_drag(&mut self, start: Pos2, end: Pos2, rect: Rect) {
+        let origin = self.view.unproject(start, rect);
+        let tip = self.view.unproject(end, rect);
+        let Some(dir) = (tip - origin).try_normalized() else { return };
+        let speed = self.reference_speed(origin) * (start.distance(end) as f64 / 100.0);
+        self.p_v_inf = speed / self.units.velocity();
+        self.p_angle = dir.y.atan2(dir.x).to_degrees();
+    }
+
+    fn projectile_structure(&self) -> Result<SphericalStructure, String> {
+        if self.p_mass <= 0.0 {
+            return Err("projectile mass must be positive".into());
+        }
+        SphericalStructure::uniform_with_mass(self.p_material.clone(), self.p_mass * self.units.mass).map_err(|e| e.to_string())
+    }
+
+    fn launch_from_spawn(&mut self) {
+        let Some(spawn) = self.spawn else { return };
+        let structure = match self.projectile_structure() {
+            Ok(s) => s,
+            Err(e) => {
+                self.error = Some(e);
+                return;
+            }
+        };
+        let velocity = self.sim.system.com_velocity() + self.aim_velocity();
+        match self.sim.inject_projectile_at(self.p_name.clone(), structure, spawn, velocity) {
+            Ok(id) => {
+                self.selected = Some(id);
+                self.running = true;
+                let speed = self.fmt_speed(self.aim_velocity().norm());
+                self.log_line(format!("launched {} from {} at {speed}, heading {:.0}°", self.p_name, self.fmt_point(spawn), self.p_angle));
+            }
+            Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    fn fmt_point(&self, p: Vec3) -> String {
+        let l = self.units.length;
+        format!("({}, {}, {}) {}", sig(p.x / l), sig(p.y / l), sig(p.z / l), self.unit_spec.length)
+    }
+
     fn projectile_panel(&mut self, ui: &mut egui::Ui) {
         ui.heading("Projectile mode");
-        ui.small("An interloper arrives from infinity on the exact two-body hyperbola set by v∞ and the impact parameter b. The tracker then decides whether the system captures it, ejects it, or swallows it, and whether it kicked anyone else out.");
+        ui.checkbox(&mut self.aim_mode, "🎯 aim by clicking on the view")
+            .on_hover_text("click: put the launch point there · drag: aim and fire, the length of the drag sets the speed (100 px = escape speed) · shift-drag: pan");
+        if self.aim_mode && self.spawn.is_none() {
+            ui.small("Click on the view where the projectile should appear, or drag from there to aim and fire in one go. Hold shift to pan.");
+        }
+        let from_point = self.spawn.is_some();
+        if let Some(sp) = self.spawn {
+            ui.horizontal(|ui| {
+                ui.small(format!("launch point {}", self.fmt_point(sp)));
+                if ui.small_button("clear").on_hover_text("go back to launches from infinity").clicked() {
+                    self.spawn = None;
+                }
+            });
+        }
+        if from_point {
+            ui.small("The projectile starts at the launch point with the speed and heading below, and the tracker reports whether it stays bound, escapes, or hits something.");
+        } else {
+            ui.small("An interloper arrives from infinity on the exact two-body hyperbola set by v∞ and the impact parameter b. The tracker then decides whether the system captures it, ejects it, or swallows it, and whether it kicked anyone else out.");
+        }
         let (ul, ut, um) = (self.unit_spec.length.clone(), self.unit_spec.time.clone(), self.unit_spec.mass.clone());
         egui::Grid::new("proj").num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
             ui.label("name");
             ui.text_edit_singleline(&mut self.p_name);
             ui.end_row();
-            ui.label(format!("v∞ [{ul}/{ut}]"));
+            ui.label(if from_point { format!("speed [{ul}/{ut}]") } else { format!("v∞ [{ul}/{ut}]") });
             drag(ui, &mut self.p_v_inf, 1e-6);
             ui.end_row();
-            ui.label(format!("impact parameter b [{ul}]"));
-            drag(ui, &mut self.p_b, 1e-9);
-            ui.end_row();
+            if !from_point {
+                ui.label(format!("impact parameter b [{ul}]"));
+                drag(ui, &mut self.p_b, 1e-9);
+                ui.end_row();
+            }
             ui.label(format!("mass [{um}]"));
             drag(ui, &mut self.p_mass, 1e-30);
             ui.end_row();
             ui.label("material");
             Self::material_combo(ui, "pmat", &mut self.p_material);
             ui.end_row();
-            ui.label("approach direction [°]");
-            ui.add(egui::DragValue::new(&mut self.p_angle).speed(1.0)).on_hover_text("direction of the velocity at infinity, in the x-y plane");
+            ui.label(if from_point { "heading [°]" } else { "approach direction [°]" });
+            ui.add(egui::DragValue::new(&mut self.p_angle).speed(1.0)).on_hover_text("direction of the velocity, in the x-y plane, anticlockwise from +x");
             ui.end_row();
-            ui.label("pass on the");
-            ui.horizontal(|ui| {
-                ui.selectable_value(&mut self.p_side, true, "left (prograde)");
-                ui.selectable_value(&mut self.p_side, false, "right (retrograde)");
-            });
-            ui.end_row();
-            ui.label(format!("start distance [{ul}] (0 = auto)"));
-            drag(ui, &mut self.p_start, 1e-6);
-            ui.end_row();
+            if !from_point {
+                ui.label("pass on the");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.p_side, true, "left (prograde)");
+                    ui.selectable_value(&mut self.p_side, false, "right (retrograde)");
+                });
+                ui.end_row();
+                ui.label(format!("start distance [{ul}] (0 = auto)"));
+                drag(ui, &mut self.p_start, 1e-6);
+                ui.end_row();
+            }
             ui.label(format!("give up after [{ut}]"));
             drag(ui, &mut self.p_max_time, 1e-6);
             ui.end_row();
         });
         if !self.sim.system.is_empty() {
             let mu = self.sim.system.g * (self.sim.system.total_mass() + self.p_mass * self.units.mass);
-            let v = self.p_v_inf * self.units.velocity();
-            let b = self.p_b * self.units.length;
-            ui.small(format!(
-                "two-body prediction about the barycentre: periapsis {}, deflection {:.1}°",
-                self.fmt_len(orbit::hyperbolic_periapsis(mu, v, b)),
-                orbit::hyperbolic_deflection(mu, v, b.max(1e-300)).to_degrees()
-            ));
+            if let Some(sp) = self.spawn {
+                let r = sp - self.sim.system.center_of_mass();
+                let v = self.aim_velocity();
+                let el = orbit::elements_from_state(mu, r, v);
+                let v_esc = self.reference_speed(sp);
+                let txt = if el.is_bound() {
+                    format!("bound: a = {}, e = {:.3}, period {}", self.fmt_len(el.elements.a), el.elements.e, self.fmt_time(el.period.unwrap_or(f64::NAN)))
+                } else {
+                    format!("unbound: v∞ = {}, periapsis {}", self.fmt_speed(el.v_infinity.unwrap_or(0.0)), self.fmt_len(el.periapsis))
+                };
+                ui.small(format!("two-body prediction about the barycentre: {txt}; escape speed here {}", self.fmt_speed(v_esc)));
+            } else {
+                let v = self.p_v_inf * self.units.velocity();
+                let b = self.p_b * self.units.length;
+                ui.small(format!(
+                    "two-body prediction about the barycentre: periapsis {}, deflection {:.1}°",
+                    self.fmt_len(orbit::hyperbolic_periapsis(mu, v, b)),
+                    orbit::hyperbolic_deflection(mu, v, b.max(1e-300)).to_degrees()
+                ));
+            }
         }
         ui.horizontal(|ui| {
             if ui.button("🚀 Launch").clicked() {
-                match self.projectile_spec() {
-                    Ok(spec) => match self.sim.inject_projectile(&spec) {
-                        Ok(id) => {
-                            self.selected = Some(id);
-                            self.running = true;
-                            self.log_line(format!("launched {} (v∞ = {}, b = {})", spec.name, self.fmt_speed(spec.v_infinity), self.fmt_len(spec.impact_parameter)));
-                            self.fit_view();
-                        }
-                        Err(e) => self.error = Some(e.to_string()),
-                    },
-                    Err(e) => self.error = Some(e),
+                if from_point {
+                    self.launch_from_spawn();
+                } else {
+                    match self.projectile_spec() {
+                        Ok(spec) => match self.sim.inject_projectile(&spec) {
+                            Ok(id) => {
+                                self.selected = Some(id);
+                                self.running = true;
+                                self.log_line(format!("launched {} (v∞ = {}, b = {})", spec.name, self.fmt_speed(spec.v_infinity), self.fmt_len(spec.impact_parameter)));
+                                self.fit_view();
+                            }
+                            Err(e) => self.error = Some(e.to_string()),
+                        },
+                        Err(e) => self.error = Some(e),
+                    }
                 }
             }
             if ui.button("Remove projectiles").clicked() {
@@ -929,8 +1337,8 @@ impl App {
         if let Some(t) = self.sim.trackers.last().cloned() {
             ui.separator();
             let (label, colour) = match &t.outcome {
-                Outcome::Captured { .. } => ("CAPTURED", Color32::from_rgb(90, 220, 120)),
-                Outcome::Ejected { .. } => ("EJECTED", Color32::from_rgb(240, 170, 60)),
+                Outcome::Captured { .. } => (if t.launched { "BOUND ORBIT" } else { "CAPTURED" }, Color32::from_rgb(90, 220, 120)),
+                Outcome::Ejected { .. } => (if t.launched { "ESCAPED" } else { "EJECTED" }, Color32::from_rgb(240, 170, 60)),
                 Outcome::Merged { .. } => ("MERGED", Color32::from_rgb(230, 80, 80)),
                 Outcome::InFlight { phase } => (
                     match phase {
@@ -949,7 +1357,11 @@ impl App {
                     ui.label(format!("a = {}, e = {:.4}, period {}, {} full orbits so far", self.fmt_len(elements.elements.a), elements.elements.e, self.fmt_time(elements.period.unwrap_or(f64::NAN)), orbits));
                 }
                 Outcome::Ejected { v_infinity_out, deflection, specific_energy_change } => {
-                    ui.label(format!("leaves at v∞ = {} (arrived at {}), deflected {:.1}°, Δε = {:+.3e} J/kg", self.fmt_speed(*v_infinity_out), self.fmt_speed(t.incoming_v_infinity), deflection.to_degrees(), specific_energy_change));
+                    if t.launched {
+                        ui.label(format!("leaves at v∞ = {}, turned {:.1}° from its launch heading, Δε = {:+.3e} J/kg", self.fmt_speed(*v_infinity_out), deflection.to_degrees(), specific_energy_change));
+                    } else {
+                        ui.label(format!("leaves at v∞ = {} (arrived at {}), deflected {:.1}°, Δε = {:+.3e} J/kg", self.fmt_speed(*v_infinity_out), self.fmt_speed(t.incoming_v_infinity), deflection.to_degrees(), specific_energy_change));
+                    }
                 }
                 Outcome::Merged { into, time } => {
                     ui.label(format!("absorbed by {into} at t = {}", self.fmt_time(*time)));
@@ -970,7 +1382,7 @@ impl App {
         }
         ui.separator();
         ui.collapsing("Outcome sweep", |ui| {
-            ui.small("Runs one experiment per (v∞, b) on a copy of the current system. C = captured, . = ejected, # = merged, ? = undetermined.");
+            ui.small("Runs one experiment per (v∞, b) on a copy of the current system, with arrivals from infinity. C = captured, . = ejected, # = merged, ? = undetermined.");
             egui::Grid::new("sweep").num_columns(2).show(ui, |ui| {
                 ui.label(format!("b range [{ul}]"));
                 ui.horizontal(|ui| {
@@ -998,10 +1410,7 @@ impl App {
 
     fn projectile_spec(&self) -> Result<ProjectileSpec, String> {
         let u = self.units;
-        if self.p_mass <= 0.0 {
-            return Err("projectile mass must be positive".into());
-        }
-        let structure = SphericalStructure::uniform_with_mass(self.p_material.clone(), self.p_mass * u.mass).map_err(|e| e.to_string())?;
+        let structure = self.projectile_structure()?;
         let (s, c) = self.p_angle.to_radians().sin_cos();
         let dir = Vec3::new(c, s, 0.0);
         let left = Vec3::Z.cross(dir);
@@ -1091,13 +1500,31 @@ impl App {
         }
     }
 
+    /// A dotted polyline through world points.
+    fn dotted(&self, painter: &egui::Painter, rect: Rect, pts: &[Vec3], colour: Color32) {
+        let screen: Vec<Pos2> = pts.iter().map(|p| self.view.project(*p, rect).0).collect();
+        for pair in screen.windows(2).step_by(2) {
+            painter.line_segment([pair[0], pair[1]], Stroke::new(1.0f32, colour));
+        }
+    }
+
     fn canvas(&mut self, ui: &mut egui::Ui) {
         let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
         let rect = response.rect;
         painter.rect_filled(rect, 0.0f32, Color32::from_rgb(8, 9, 14));
+        if (rect.size() - self.canvas_size).length() > 1.0 {
+            // First frame, or the panels / window changed size: refit if the user has not moved the view yet.
+            let first = self.canvas_size == Vec2::new(800.0, 800.0);
+            self.canvas_size = rect.size();
+            if first {
+                self.fit_view();
+            }
+        }
+        let shift = ui.input(|i| i.modifiers.shift);
+        let aiming = self.aim_mode && !shift;
 
         // Interaction.
-        if response.dragged_by(egui::PointerButton::Primary) {
+        if response.dragged_by(egui::PointerButton::Primary) && !aiming {
             self.view.pan(response.drag_delta());
             self.follow = None;
         }
@@ -1134,29 +1561,106 @@ impl App {
         }).collect();
         items.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
 
+        let nearest = |mouse: Pos2| -> Option<usize> {
+            let mut best: Option<(f32, usize)> = None;
+            for (i, p, _) in &items {
+                let d = p.distance(mouse);
+                if d < 14.0 && best.map(|(bd, _)| d < bd).unwrap_or(true) {
+                    best = Some((d, *i));
+                }
+            }
+            best.map(|(_, i)| i)
+        };
         if response.clicked() {
             if let Some(mouse) = response.interact_pointer_pos() {
-                let mut best: Option<(f32, usize)> = None;
-                for (i, p, _) in &items {
-                    let d = p.distance(mouse);
-                    if d < 14.0 && best.map(|(bd, _)| d < bd).unwrap_or(true) {
-                        best = Some((d, *i));
+                match nearest(mouse) {
+                    Some(i) => self.selected = Some(self.sim.system.bodies()[i].id()),
+                    None if aiming => {
+                        self.spawn = Some(self.view.unproject(mouse, rect));
+                        self.aim = None;
                     }
+                    None => self.selected = None,
                 }
-                self.selected = best.map(|(_, i)| self.sim.system.bodies()[i].id());
             }
         }
+        if aiming {
+            if response.drag_started_by(egui::PointerButton::Primary) {
+                if let Some(p) = response.interact_pointer_pos() {
+                    self.spawn = Some(self.view.unproject(p, rect));
+                    self.aim = Some((p, p));
+                }
+            }
+            if response.dragged_by(egui::PointerButton::Primary) {
+                if let (Some((start, _)), Some(p)) = (self.aim, response.interact_pointer_pos()) {
+                    self.aim = Some((start, p));
+                    self.set_aim_from_drag(start, p, rect);
+                }
+            }
+            if response.drag_stopped_by(egui::PointerButton::Primary) {
+                if let Some((start, end)) = self.aim.take() {
+                    if start.distance(end) >= 6.0 {
+                        self.set_aim_from_drag(start, end, rect);
+                        self.launch_from_spawn();
+                    }
+                }
+            }
+        } else {
+            self.aim = None;
+        }
 
-        // Trails.
+        // Trails (stored inertially, or in the co-rotating frame they were recorded in).
         if self.show_trails {
+            let frame = self.frame();
             for (id, trail) in &self.trails {
                 if trail.len() < 2 {
                     continue;
                 }
                 let colour = self.sim.system.get(*id).map(|b| b.colour()).unwrap_or([120, 120, 120]);
-                let pts: Vec<Pos2> = trail.iter().map(|p| self.view.project(*p, rect).0).collect();
+                let pts: Vec<Pos2> = trail.iter().map(|p| self.view.project(frame.map_or(*p, |f| f.to_world(*p)), rect).0).collect();
                 let c = c32(colour);
                 painter.add(egui::Shape::line(pts, Stroke::new(1.0f32, Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), 110))));
+            }
+        }
+
+        // Lagrange points of the chosen pair, and the circle the secondary rides on.
+        if self.show_lagrange {
+            if let Some((p, s)) = self.lagrange_pair().map(|(p, s)| (p.clone(), s.clone())) {
+                let normal = pair_normal(&p, &s);
+                let pts = orbit::lagrange_points(p.position, p.mass(), s.position, s.mass(), normal);
+                let m = p.mass() + s.mass();
+                let bary = (p.position * p.mass() + s.position * s.mass()) / m;
+                let x_hat = (s.position - p.position).normalized();
+                let n_hat = normal.reject_from_unit(x_hat).try_normalized().unwrap_or(Vec3::Z);
+                let y_hat = n_hat.cross(x_hat);
+                let radius = (s.position - bary).norm();
+                let circle: Vec<Vec3> = (0..=180).map(|k| {
+                    let phi = 2.0 * std::f64::consts::PI * k as f64 / 180.0;
+                    bary + (x_hat * phi.cos() + y_hat * phi.sin()) * radius
+                }).collect();
+                self.dotted(&painter, rect, &circle, Color32::from_rgba_unmultiplied(90, 200, 220, 70));
+                for (k, q) in pts.iter().enumerate() {
+                    let (pos, _) = self.view.project(*q, rect);
+                    if !rect.expand(20.0).contains(pos) {
+                        continue;
+                    }
+                    let d = 5.0;
+                    let diamond = vec![pos + Vec2::new(0.0, -d), pos + Vec2::new(d, 0.0), pos + Vec2::new(0.0, d), pos + Vec2::new(-d, 0.0)];
+                    painter.add(egui::Shape::closed_line(diamond, Stroke::new(1.5f32, TEAL)));
+                    painter.text(pos + Vec2::new(d + 3.0, -d), Align2::LEFT_BOTTOM, format!("L{}", k + 1), FontId::proportional(11.0), TEAL);
+                }
+            }
+        }
+
+        // The selected body's osculating orbit about its reference body.
+        if let (Some(id), Some(t)) = (self.selected, self.orbit_target) {
+            if let (Some(b), Some(p)) = (self.sim.system.get(id), self.sim.system.get(t)) {
+                if b.id() != p.id() {
+                    let mu = self.sim.system.g * (p.mass() + b.mass());
+                    let r_max = 20.0 * self.sim.system.extent().max(b.position.distance(p.position));
+                    let pts: Vec<Vec3> = orbit::conic_points(mu, b.position - p.position, b.velocity - p.velocity, 240, r_max).into_iter().map(|q| p.position + q).collect();
+                    let c = c32(b.colour());
+                    self.dotted(&painter, rect, &pts, Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), 80));
+                }
             }
         }
 
@@ -1185,6 +1689,34 @@ impl App {
             }
         }
 
+        // The launch point, its predicted path, and the aiming arrow.
+        if let Some(spawn) = self.spawn {
+            let (pos, _) = self.view.project(spawn, rect);
+            painter.circle_stroke(pos, 6.0, Stroke::new(1.5f32, ORANGE));
+            painter.line_segment([pos + Vec2::new(-10.0, 0.0), pos + Vec2::new(10.0, 0.0)], Stroke::new(1.0f32, ORANGE));
+            painter.line_segment([pos + Vec2::new(0.0, -10.0), pos + Vec2::new(0.0, 10.0)], Stroke::new(1.0f32, ORANGE));
+            if !self.sim.system.is_empty() && self.p_v_inf > 0.0 {
+                let com = self.sim.system.center_of_mass();
+                let mu = self.sim.system.g * (self.sim.system.total_mass() + self.p_mass * self.units.mass);
+                let r = spawn - com;
+                let v = self.aim_velocity();
+                let r_max = (10.0 * self.sim.system.extent()).max(3.0 * r.norm());
+                let path: Vec<Vec3> = orbit::conic_points(mu, r, v, 240, r_max).into_iter().map(|q| com + q).collect();
+                self.dotted(&painter, rect, &path, Color32::from_rgba_unmultiplied(255, 160, 60, 150));
+            }
+            if let Some((start, end)) = self.aim {
+                let tip = end;
+                painter.line_segment([start, tip], Stroke::new(2.0f32, ORANGE));
+                let dir = (tip - start).normalized();
+                let side = Vec2::new(-dir.y, dir.x);
+                painter.add(egui::Shape::convex_polygon(vec![tip, tip - dir * 10.0 + side * 5.0, tip - dir * 10.0 - side * 5.0], ORANGE, Stroke::NONE));
+                let v = self.aim_velocity().norm();
+                let ratio = v / self.reference_speed(spawn).max(f64::MIN_POSITIVE);
+                let verdict = if ratio < 1.0 { "bound" } else { "escapes" };
+                painter.text(tip + Vec2::new(12.0, -12.0), Align2::LEFT_BOTTOM, format!("{} = {ratio:.2} v_esc ({verdict})", self.fmt_speed(v)), FontId::proportional(12.0), ORANGE);
+            }
+        }
+
         // Scale bar.
         let target_px = 120.0;
         let metres = target_px / self.view.scale;
@@ -1195,13 +1727,15 @@ impl App {
         let p0 = Pos2::new(rect.left() + 16.0, rect.bottom() - 16.0);
         painter.line_segment([p0, p0 + Vec2::new(px, 0.0)], Stroke::new(2.0f32, Color32::GRAY));
         painter.text(p0 + Vec2::new(0.0, -6.0), Align2::LEFT_BOTTOM, format!("{} {}", sig(nice), self.unit_spec.length), FontId::proportional(11.0), Color32::GRAY);
-        painter.text(
-            Pos2::new(rect.right() - 10.0, rect.bottom() - 10.0),
-            Align2::RIGHT_BOTTOM,
-            "drag: pan · scroll: zoom · right-drag: tilt · click: select · space: run/pause · F: fit",
-            FontId::proportional(11.0),
-            Color32::from_gray(90),
-        );
+        if self.corotate && self.frame().is_some() {
+            painter.text(Pos2::new(rect.left() + 16.0, rect.top() + 10.0), Align2::LEFT_TOP, "co-rotating frame", FontId::proportional(11.0), TEAL);
+        }
+        let hint = if aiming {
+            "aim mode · click: place the launch point · drag: aim and fire · shift-drag: pan · scroll: zoom · Esc: clear"
+        } else {
+            "drag: pan · scroll: zoom · right-drag: tilt · click: select · space: run/pause · F: fit · F11: full screen"
+        };
+        painter.text(Pos2::new(rect.right() - 10.0, rect.bottom() - 10.0), Align2::RIGHT_BOTTOM, hint, FontId::proportional(11.0), Color32::from_gray(90));
         if self.sim.system.is_empty() {
             painter.text(rect.center(), Align2::CENTER_CENTER, "Add bodies on the left or load a preset above", FontId::proportional(16.0), Color32::GRAY);
         }
@@ -1210,17 +1744,41 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let (space, fit, delete) = ctx.input(|i| (i.key_pressed(egui::Key::Space), i.key_pressed(egui::Key::F), i.key_pressed(egui::Key::Delete)));
-        if space && !ctx.wants_keyboard_input() {
+        #[cfg(target_arch = "wasm32")]
+        self.poll_fullscreen();
+        // A pair that has lost a member (merger, deletion) falls back to the two heaviest bodies.
+        if self.lagrange_pair().is_none() && self.sim.system.len() >= 2 {
+            self.default_lagrange_pair(None);
+        }
+        self.view.frame_yaw = self.frame().map_or(0.0, |f| -f.theta);
+
+        let (space, fit, delete, f11, escape) = ctx.input(|i| {
+            (i.key_pressed(egui::Key::Space), i.key_pressed(egui::Key::F), i.key_pressed(egui::Key::Delete), i.key_pressed(egui::Key::F11), i.key_pressed(egui::Key::Escape))
+        });
+        let typing = ctx.wants_keyboard_input();
+        if space && !typing {
             self.running = !self.running;
         }
-        if fit && !ctx.wants_keyboard_input() {
+        if fit && !typing {
             self.fit_view();
         }
-        if delete && !ctx.wants_keyboard_input() {
+        if delete && !typing {
             if let Some(id) = self.selected.take() {
                 self.sim.system.remove(id);
                 self.sim.reset_baseline();
+            }
+        }
+        if f11 {
+            let on = !self.is_fullscreen(ctx);
+            self.set_fullscreen(ctx, on);
+        }
+        if escape && !typing {
+            if self.aim.is_some() {
+                self.aim = None;
+            } else if self.spawn.is_some() {
+                self.spawn = None;
+            } else if self.is_fullscreen(ctx) {
+                self.set_fullscreen(ctx, false);
             }
         }
         if self.running {
@@ -1265,10 +1823,65 @@ mod web {
     use wasm_bindgen::prelude::*;
     use wasm_bindgen::JsCast;
 
+    /// Class put on the host element while the simulator fills the page.
+    const FILL_CLASS: &str = "nbody-fill";
+
+    fn document() -> Option<web_sys::Document> {
+        web_sys::window()?.document()
+    }
+
+    impl App {
+        pub(crate) fn with_host(mut self, host: web_sys::HtmlElement) -> App {
+            self.host = Some(host);
+            self
+        }
+
+        fn real_fullscreen() -> bool {
+            document().and_then(|d| d.fullscreen_element()).is_some()
+        }
+
+        pub(crate) fn host_fullscreen(&self) -> bool {
+            Self::real_fullscreen() || self.host.as_ref().map(|h| h.class_list().contains(FILL_CLASS)).unwrap_or(false)
+        }
+
+        /// Fill the screen: pin the host over the page (which works in every
+        /// browser, iPhone Safari included) and, where the browser allows it,
+        /// take real full screen on top.
+        pub(crate) fn set_host_fullscreen(&mut self, on: bool) {
+            let Some(host) = self.host.clone() else { return };
+            if on {
+                let _ = host.class_list().add_1(FILL_CLASS);
+                if document().map(|d| d.fullscreen_enabled()).unwrap_or(false) {
+                    let _ = host.request_fullscreen();
+                }
+            } else {
+                if let Some(doc) = document() {
+                    if doc.fullscreen_element().is_some() {
+                        doc.exit_fullscreen();
+                    }
+                }
+                let _ = host.class_list().remove_1(FILL_CLASS);
+            }
+        }
+
+        /// The browser leaves real full screen on its own (Escape, or the user
+        /// switching apps); then drop the page-filling fallback too.
+        pub(crate) fn poll_fullscreen(&mut self) {
+            let real = Self::real_fullscreen();
+            if self.was_fullscreen && !real {
+                if let Some(h) = &self.host {
+                    let _ = h.class_list().remove_1(FILL_CLASS);
+                }
+            }
+            self.was_fullscreen = real;
+        }
+    }
+
     /// Start the simulator inside `container`: a `<canvas class="nbody-canvas">`
-    /// is created there and the app is drawn into it with WebGL2. The returned
-    /// promise resolves once the app is running and rejects (with a JS value)
-    /// if the browser lacks WebGL2.
+    /// is created there and the app is drawn into it with WebGL2. The container
+    /// gets the class `nbody-host`, and `nbody-host nbody-fill` while the
+    /// simulator fills the page. The returned promise resolves once the app is
+    /// running and rejects (with a JS value) if the browser lacks WebGL2.
     #[wasm_bindgen]
     pub async fn start(container: web_sys::HtmlElement) -> Result<(), JsValue> {
         console_error_panic_hook::set_once();
@@ -1276,14 +1889,17 @@ mod web {
         let canvas: web_sys::HtmlCanvasElement = document.create_element("canvas")?.dyn_into()?;
         canvas.set_class_name("nbody-canvas");
         canvas.set_attribute("aria-label", "N-body simulation: orbit view and controls")?;
+        container.class_list().add_1("nbody-host")?;
         container.append_child(&canvas)?;
+        let host = container.clone();
         eframe::WebRunner::new()
             .start(
                 canvas,
                 eframe::WebOptions::default(),
-                Box::new(|cc| {
-                    cc.egui_ctx.set_visuals(egui::Visuals::dark());
-                    Ok(Box::new(App::new()))
+                Box::new(move |cc| {
+                    // The page is dark whatever the system theme says.
+                    cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
+                    Ok(Box::new(App::new().with_host(host)))
                 }),
             )
             .await?;

@@ -1,0 +1,74 @@
+name = "Three-body 'Goggles'"
+description = "Šuvakov & Dmitrašinović's periodic orbit 'goggles' (period 10.4668): three equal masses, G = 1. Watch one full period draw itself, then another; the published five-digit initial conditions let it wander after several periods."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 20.9336
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.005
+dt_min = 0.000000001
+dt_max = 0.004
+
+[[bodies]]
+name = "A"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    -1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0833,
+    0.12789,
+    0.0,
+]
+
+[[bodies]]
+name = "B"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0833,
+    0.12789,
+    0.0,
+]
+
+[[bodies]]
+name = "C"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    0.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    -0.1666,
+    -0.25578,
+    0.0,
+]
+
+[view]
+corotating = false
+trail_span = 10.4668

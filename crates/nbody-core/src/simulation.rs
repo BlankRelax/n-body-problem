@@ -252,6 +252,21 @@ impl Simulation {
         Ok(id)
     }
 
+    /// Add a projectile at an explicit position and velocity (a launch from
+    /// inside the system) and start tracking it.
+    pub fn inject_projectile_at(
+        &mut self,
+        name: impl Into<String>,
+        structure: crate::structure::SphericalStructure,
+        position: Vec3,
+        velocity: Vec3,
+    ) -> Result<BodyId, ProjectileError> {
+        let (id, tracker) = crate::projectile::inject_at(&mut self.system, name, structure, position, velocity)?;
+        self.trackers.push(tracker);
+        self.reset_baseline();
+        Ok(id)
+    }
+
     pub fn tracker(&self, id: BodyId) -> Option<&ProjectileTracker> {
         self.trackers.iter().find(|t| t.id == id)
     }

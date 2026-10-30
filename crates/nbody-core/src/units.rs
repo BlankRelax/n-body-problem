@@ -96,6 +96,7 @@ impl UnitSystem {
             "au" | "astronomical_unit" => AU,
             "ly" | "lightyear" | "light_year" => LIGHT_YEAR,
             "pc" | "parsec" => PARSEC,
+            "kpc" | "kiloparsec" => 1e3 * PARSEC,
             "r_sun" | "solar_radius" | "rsun" => R_SUN,
             "r_earth" | "earth_radius" | "rearth" => R_EARTH,
             "r_jupiter" | "jupiter_radius" => R_JUPITER,
@@ -125,6 +126,7 @@ impl UnitSystem {
             "yr" | "year" | "years" | "julian_year" => YEAR,
             "kyr" => 1e3 * YEAR,
             "myr" => 1e6 * YEAR,
+            "gyr" => 1e9 * YEAR,
             _ => return None,
         })
     }

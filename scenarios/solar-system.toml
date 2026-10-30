@@ -158,3 +158,6 @@ inclination = 1.77004347
 raan = 131.78422574
 arg_periapsis = -86.81946347000002
 mean_anomaly = -100.08479196
+
+[view]
+corotating = false

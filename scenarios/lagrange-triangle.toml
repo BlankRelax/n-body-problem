@@ -1,0 +1,70 @@
+name = "Lagrange's triangle"
+description = "Masses 1, 0.6 and 0.3 at the corners of an equilateral triangle, each on an ellipse of eccentricity 0.5 about the common centre of mass, G = 1. The triangle turns and breathes but stays equilateral (period 12.893). For masses this similar the configuration is unstable, so round-off eventually tips it into chaos; the stable case needs one body to carry over 96% of the mass."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+dt = 0.002
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 38.67847264383458
+barycentric = true
+
+[[bodies]]
+name = "Alpha"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    -0.3947368421052631,
+    -0.13674085322912186,
+    0.0,
+]
+velocity = [
+    0.23084512921915962,
+    -0.6663924874789788,
+    0.0,
+]
+
+[[bodies]]
+name = "Beta"
+kind = "star"
+mass = 0.6
+material = "gas"
+position = [
+    0.605263157894737,
+    -0.13674085322912186,
+    0.0,
+]
+velocity = [
+    0.23084512921915967,
+    1.0218018141344347,
+    -0.0,
+]
+
+[[bodies]]
+name = "Gamma"
+kind = "star"
+mass = 0.3
+material = "ice"
+position = [
+    0.10526315789473689,
+    0.7292845505553167,
+    0.0,
+]
+velocity = [
+    -1.2311740225021848,
+    0.17770466332772777,
+    0.0,
+]
+
+[view]
+corotating = false
+trail_span = 12.892824214611528

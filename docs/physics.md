@@ -114,6 +114,27 @@ M`) and hyperbolic (`e sinh H − H = M`) forms. Scale lengths provided:
 * Rutherford deflection `θ = 2 atan(μ / (b v∞²))`,
 * gravitationally focused cross-section `π R² (1 + v_esc²/v∞²)`.
 
+### Lagrange points
+
+For a pair on a circular orbit, `collinear_lagrange_points(μ)` solves
+
+```text
+x − (1−μ)(x+μ)/|x+μ|³ − μ(x−1+μ)/|x−1+μ|³ = 0
+```
+
+for L1, L2 and L3 in barycentric units of the separation (`μ = m₂/(m₁+m₂)`,
+m₁ at `−μ`, m₂ at `1−μ`) by bisection on the three intervals where the
+function is monotonic; L4 and L5 complete equilateral triangles with the
+pair, L4 leading. `lagrange_points` turns these into world positions for
+any pair and orbit normal (for an eccentric pair they are the points of
+the osculating circular problem), and `corotating_velocity` gives the
+velocity `v_cm + ω × (r − r_cm)` that parks a test mass there. L4/L5 are
+linearly stable for `μ < (1 − sqrt(23/27))/2 ≈ 0.0385` (Routh); the
+`lagrange_points` preset checks this numerically for the Sun–Jupiter pair
+and watches the collinear probes leave. The GUI draws L1–L5 for a chosen
+pair and can turn the view with it, which is the frame in which tadpole and
+horseshoe orbits (`co-orbital` preset) take their shapes.
+
 ## 6. Projectile mode (`projectile.rs`)
 
 An interloper is specified by its excess speed `v∞`, impact parameter `b`
@@ -162,6 +183,16 @@ planet into a bound heliocentric orbit, a direct hit merges, and a pass
 behind slingshots it out faster than it arrived. The regression test
 `jupiter_encounter_regimes` pins one representative of each.
 
+### Launches from a point
+
+`inject_at` creates a projectile at an explicit position and velocity
+instead of on an approach hyperbola (the GUI's click-to-aim). The tracker
+is the same; its "incoming" `v∞` is the excess speed implied by the launch
+energy (zero when the launch is already bound), a launch that is not moving
+inward counts as having passed periapsis, and an escape is declared once
+the projectile has receded beyond the larger of its launch distance and
+three times the system's extent.
+
 ## 7. Units
 
 Everything internal is SI. Scenario files declare a unit system (for
@@ -178,6 +209,8 @@ it in the scenario.
 * Hairer, E., Lubich, C. & Wanner, G. (2006), *Geometric Numerical Integration*, Springer.
 * Leinhardt, Z. M. & Stewart, S. T. (2012), *ApJ* 745, 79 (collision regimes).
 * Omelyan, I. P., Mryglod, I. M. & Folk, R. (2002), *Comput. Phys. Commun.* 146, 188 (PEFRL).
+* Šuvakov, M. & Dmitrašinović, V. (2013), *Phys. Rev. Lett.* 110, 114301 (periodic three-body orbits).
 * Szebehely, V. & Peters, C. F. (1967), *AJ* 72, 876 (Pythagorean problem).
+* Toomre, A. & Toomre, J. (1972), *ApJ* 178, 623 (galactic bridges and tails).
 * Wisdom, J. & Holman, M. (1991), *AJ* 102, 1528 (symplectic maps for N-body).
 * Yoshida, H. (1990), *Phys. Lett. A* 150, 262.

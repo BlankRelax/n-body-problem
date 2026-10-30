@@ -1,0 +1,147 @@
+name = "TRAPPIST-1"
+description = "An ultracool dwarf of 0.09 solar masses with seven Earth-sized planets whose periods run from 1.5 to 18.8 days in a chain of near resonances (8:5, 5:3, 3:2, 3:2, 4:3, 3:2). The whole system would fit inside Mercury's orbit."
+
+[units]
+length = "au"
+mass = "solar"
+time = "day"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.002
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 40.0
+barycentric = true
+
+[[bodies]]
+name = "TRAPPIST-1"
+kind = "star"
+mass = 0.0898
+radius = 0.0005543356975066892
+material = "plasma"
+
+[[bodies]]
+name = "TRAPPIST-1b"
+kind = "planet"
+mass = 0.0000041268299748047505
+radius = 0.000047527655084465054
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.01154
+e = 0.00622
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 0.0
+mean_anomaly = 0.0
+
+[[bodies]]
+name = "TRAPPIST-1c"
+kind = "planet"
+mass = 0.0000039285979672813775
+radius = 0.000046718492497901574
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.0158
+e = 0.00654
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 70.0
+mean_anomaly = 137.5
+
+[[bodies]]
+name = "TRAPPIST-1d"
+kind = "planet"
+mass = 0.0000011653639230161883
+radius = 0.00003355895359010614
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.02227
+e = 0.00837
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 140.0
+mean_anomaly = 275.0
+
+[[bodies]]
+name = "TRAPPIST-1e"
+kind = "planet"
+mass = 0.0000020784325637299026
+radius = 0.000039180504191494484
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.02925
+e = 0.0051
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 210.0
+mean_anomaly = 412.5
+
+[[bodies]]
+name = "TRAPPIST-1f"
+kind = "planet"
+mass = 0.0000031206523608603598
+radius = 0.00004450394226099102
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.03849
+e = 0.01007
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 280.0
+mean_anomaly = 550.0
+
+[[bodies]]
+name = "TRAPPIST-1g"
+kind = "planet"
+mass = 0.0000039676436657329506
+radius = 0.00004808129264369269
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.04683
+e = 0.00208
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 350.0
+mean_anomaly = 687.5
+
+[[bodies]]
+name = "TRAPPIST-1h"
+kind = "planet"
+mass = 0.0000009791459765548388
+radius = 0.00003215356593975906
+material = "rock"
+core = "iron"
+
+[bodies.orbit]
+around = "TRAPPIST-1"
+a = 0.06189
+e = 0.00567
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 420.0
+mean_anomaly = 825.0
+
+[view]
+corotating = false
+trail_span = 19.0

@@ -1,0 +1,122 @@
+name = "Co-orbital motion"
+description = "A planet of one thousandth of its star's mass and four test masses on the same orbit, G = 1. 'Tadpole A' and 'Tadpole B' were released at rest in the rotating frame some way from L4 and L5, so they librate about those points on tadpole-shaped paths. 'Horseshoe in' and 'Horseshoe out' start opposite the planet on orbits 3% smaller and larger; they gain on the planet, are turned around by it before they can reach it, and swing back round the other way, tracing a horseshoe in the co-rotating frame."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+dt = 0.005
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 400.0
+barycentric = true
+
+[[bodies]]
+name = "Star"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    0.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    0.0,
+    0.0,
+]
+
+[[bodies]]
+name = "Planet"
+kind = "planet"
+mass = 0.001
+material = "gas"
+position = [
+    1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    1.000499875062461,
+    0.0,
+]
+
+[[bodies]]
+name = "Tadpole A"
+kind = "asteroid"
+mass = 0.000000001
+material = "ice"
+position = [
+    0.17364817766693041,
+    0.984807753012208,
+    0.0,
+]
+velocity = [
+    -0.985300033849257,
+    0.1737349800605879,
+    0.0,
+]
+
+[[bodies]]
+name = "Tadpole B"
+kind = "asteroid"
+mass = 0.000000001
+material = "ice"
+position = [
+    -0.25881904510252085,
+    -0.9659258262890683,
+    0.0,
+]
+velocity = [
+    0.9664086685218172,
+    -0.25894842228885756,
+    0.0,
+]
+
+[[bodies]]
+name = "Horseshoe in"
+kind = "asteroid"
+mass = 0.000000001
+material = "ice"
+position = [
+    -0.97,
+    0.00000000000000011879073951729327,
+    0.0,
+]
+velocity = [
+    -0.00000000000000012434404311574265,
+    -1.015346165133619,
+    0.0,
+]
+
+[[bodies]]
+name = "Horseshoe out"
+kind = "asteroid"
+mass = 0.000000001
+material = "ice"
+position = [
+    -1.03,
+    0.00000000000000012613862031217737,
+    0.0,
+]
+velocity = [
+    -0.00000000000000012066803466100737,
+    -0.9853292781642932,
+    0.0,
+]
+
+[view]
+lagrange_points = [
+    "Star",
+    "Planet",
+]
+corotating = true
+trail_span = 400.0

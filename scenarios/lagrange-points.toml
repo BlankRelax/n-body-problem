@@ -1,0 +1,475 @@
+name = "Lagrange points"
+description = "Jupiter on a circular orbit about the Sun, with a probe parked at each Lagrange point and ten Trojans around L4 and L5. In the frame co-rotating with Jupiter the probes should stand still: L4 and L5 are stable (the mass ratio 0.00095 is below Routh's 0.0385) and the swarms trace tadpole-shaped librations, while L1, L2 and L3 are saddle points whose probes drift off within a few Jupiter years."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.004
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 300.0
+barycentric = true
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Jupiter"
+kind = "planet"
+mass = 0.000954603287955061
+radius = 0.0004673261703049093
+material = "gas"
+core = "rock"
+position = [
+    5.2029,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    2.7558951063178223,
+    0.0,
+]
+
+[[bodies]]
+name = "L1"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    4.856189432330091,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    2.572247917874805,
+    0.0,
+]
+
+[[bodies]]
+name = "L2"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    5.566157578236864,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    2.948306988574994,
+    0.0,
+]
+
+[[bodies]]
+name = "L3"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    -5.20020551799236,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    -2.7544678811589844,
+    0.0,
+]
+
+[[bodies]]
+name = "L4"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.60155,
+    4.506016778430811,
+    0.0,
+]
+velocity = [
+    -2.38676691627044,
+    1.378000521601632,
+    0.0,
+]
+
+[[bodies]]
+name = "L5"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.60155,
+    -4.506016778430811,
+    0.0,
+]
+velocity = [
+    2.38676691627044,
+    1.378000521601632,
+    -0.0,
+]
+
+[[bodies]]
+name = "Achilles"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.5730823131248752,
+    4.540886282388983,
+    0.0073021871892927845,
+]
+velocity = [
+    -2.406046822150824,
+    1.3633806569076874,
+    0.0,
+]
+
+[[bodies]]
+name = "Hektor"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.4888611022182947,
+    4.625483376955813,
+    0.016530643482803448,
+]
+velocity = [
+    -2.448222616756525,
+    1.317329572682758,
+    0.0,
+]
+
+[[bodies]]
+name = "Nestor"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.721898869372569,
+    4.4172886391966815,
+    -0.006378495368245862,
+]
+velocity = [
+    -2.3433571846609698,
+    1.4439584533522218,
+    0.0,
+]
+
+[[bodies]]
+name = "Agamemnon"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    3.0674967016101893,
+    4.21530013045158,
+    0.039966580543515526,
+]
+velocity = [
+    -2.231300387159692,
+    1.6237293587872352,
+    0.0,
+]
+
+[[bodies]]
+name = "Odysseus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.0300336878293392,
+    4.735804267852469,
+    -0.03584540136376571,
+]
+velocity = [
+    -2.511193914439409,
+    1.076439809303123,
+    0.0,
+]
+
+[[bodies]]
+name = "Ajax"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.481857613377318,
+    4.5874913162923425,
+    0.015197065703372314,
+]
+velocity = [
+    -2.432081193187137,
+    1.3157690793280257,
+    0.0,
+]
+
+[[bodies]]
+name = "Diomedes"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.4808780884887964,
+    4.626044903507123,
+    -0.019391703920996317,
+]
+velocity = [
+    -2.4456791169720753,
+    1.3115808124064627,
+    0.0,
+]
+
+[[bodies]]
+name = "Menelaus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.6988605582151988,
+    4.4132187968910594,
+    0.03777077321229083,
+]
+velocity = [
+    -2.336218493877351,
+    1.4286914469185656,
+    0.0,
+]
+
+[[bodies]]
+name = "Telamon"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.1656668005385624,
+    4.711714074293612,
+    -0.016297685580616242,
+]
+velocity = [
+    -2.4932582932187706,
+    1.1459877712551654,
+    0.0,
+]
+
+[[bodies]]
+name = "Antilochus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.9468653092997585,
+    4.343961010102745,
+    0.0016202456339114088,
+]
+velocity = [
+    -2.2970958281072336,
+    1.5583086478546224,
+    0.0,
+]
+
+[[bodies]]
+name = "Patroclus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.1502563473564007,
+    -4.7684687207820575,
+    -0.045079188749135635,
+]
+velocity = [
+    2.524922849430979,
+    1.1385691511223222,
+    -0.0,
+]
+
+[[bodies]]
+name = "Priamus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.7076199060269897,
+    -4.50288399490184,
+    0.04302809379689164,
+]
+velocity = [
+    2.3846065444045723,
+    1.4338828526300516,
+    -0.0,
+]
+
+[[bodies]]
+name = "Aeneas"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.297196724957217,
+    -4.705992478305803,
+    0.04470795205784908,
+]
+velocity = [
+    2.497448753243728,
+    1.2191118288326275,
+    -0.0,
+]
+
+[[bodies]]
+name = "Anchises"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    3.05402513588463,
+    -4.160155498401586,
+    0.04968142071108342,
+]
+velocity = [
+    2.2001245249173165,
+    1.6151404926463389,
+    -0.0,
+]
+
+[[bodies]]
+name = "Troilus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.8930306373200216,
+    -4.27650981084755,
+    0.007747623269401684,
+]
+velocity = [
+    2.267267911742611,
+    1.5337917652020996,
+    -0.0,
+]
+
+[[bodies]]
+name = "Deiphobus"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    3.0155334607267816,
+    -4.279388173470084,
+    -0.02882007529398023,
+]
+velocity = [
+    2.270940629164578,
+    1.6002515259130392,
+    -0.0,
+]
+
+[[bodies]]
+name = "Paris"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.5005865399323106,
+    -4.5332714484058885,
+    0.037074897733439374,
+]
+velocity = [
+    2.397496722809504,
+    1.322477178527981,
+    -0.0,
+]
+
+[[bodies]]
+name = "Antenor"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.489378781576028,
+    -4.621313110388244,
+    -0.029296649472564076,
+]
+velocity = [
+    2.4494375418724115,
+    1.3194470268258143,
+    -0.0,
+]
+
+[[bodies]]
+name = "Polydoros"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.1388680428278413,
+    -4.760525056370761,
+    0.040104949603838466,
+]
+velocity = [
+    2.525688824992723,
+    1.1347729609520631,
+    -0.0,
+]
+
+[[bodies]]
+name = "Glaukos"
+kind = "asteroid"
+mass = 0.000000000001
+radius = 0.00000033422935611342225
+material = "rock"
+position = [
+    2.948391470345767,
+    -4.257521999705298,
+    0.011418222418288757,
+]
+velocity = [
+    2.255520855204836,
+    1.5619786465303638,
+    -0.0,
+]
+
+[view]
+lagrange_points = [
+    "Sun",
+    "Jupiter",
+]
+corotating = true
+trail_span = 60.0

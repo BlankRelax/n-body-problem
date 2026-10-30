@@ -1,0 +1,49 @@
+name = "Giant impact"
+description = "A Mars-sized body of a tenth of an Earth mass strikes the 0.9-Earth-mass proto-Earth at a 45-degree angle and 1.04 times their mutual escape speed (9.5 km/s at contact), the canonical Moon-forming impact. Press Launch: the physical collision model decides whether the pair merges or Theia survives a hit-and-run; the merger's layers differentiate, iron sinking to the core."
+
+[units]
+length = "km"
+mass = "earth"
+time = "hour"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 40.0
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.01
+dt_min = 0.0000001
+dt_max = 0.01
+
+[[bodies]]
+name = "Proto-Earth"
+kind = "planet"
+mass = 0.9
+radius = 6250.0
+material = "rock"
+core = "iron"
+
+[projectile]
+name = "Theia"
+mass = 0.1
+radius = 3300.0
+material = "rock"
+core = "iron"
+v_infinity = 9867.664447044815
+impact_parameter = 23500.67670420483
+direction = [
+    1.0,
+    0.0,
+    0.0,
+]
+start_distance = 114600.0
+max_time = 40.0
+
+[view]
+corotating = false
+trail_span = 12.0

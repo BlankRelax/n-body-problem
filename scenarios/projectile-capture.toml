@@ -64,3 +64,6 @@ offset_direction = [
 ]
 start_distance = 60.0
 max_time = 120.0
+
+[view]
+corotating = false

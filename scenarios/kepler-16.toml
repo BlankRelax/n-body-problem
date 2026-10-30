@@ -1,0 +1,73 @@
+name = "Kepler-16"
+description = "The first circumbinary planet seen to transit: a K dwarf and an M dwarf 0.22 au apart (period 41 days) circled by a Saturn-mass planet at 0.70 au (229 days). Both stars orbit their common centre of mass, so the planet sees its suns swing past each other every three weeks."
+
+[units]
+length = "au"
+mass = "solar"
+time = "day"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.05
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 700.0
+barycentric = true
+
+[[bodies]]
+name = "Kepler-16 A"
+kind = "star"
+mass = 0.6897
+radius = 0.003017688205638344
+material = "plasma"
+position = [
+    0.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    0.0,
+    0.0,
+]
+
+[[bodies]]
+name = "Kepler-16 B"
+kind = "star"
+mass = 0.20255
+radius = 0.001052075208447469
+material = "plasma"
+position = [
+    0.000000000000000013385866515122212,
+    0.218607790008384,
+    0.0,
+]
+velocity = [
+    -0.034753493648009816,
+    0.005541097027238687,
+    0.0,
+]
+
+[[bodies]]
+name = "Kepler-16b"
+kind = "planet"
+mass = 0.00031788289488903534
+radius = 0.00035227046717584067
+material = "gas"
+core = "rock"
+position = [
+    -0.70966312,
+    0.04962623464970386,
+    0.0,
+]
+velocity = [
+    -0.007889403349290435,
+    -0.01796767396066655,
+    0.0,
+]
+
+[view]
+corotating = false
+trail_span = 229.0

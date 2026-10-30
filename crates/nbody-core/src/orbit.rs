@@ -339,6 +339,111 @@ pub fn focused_cross_section(mu: f64, radius: f64, v_inf: f64) -> f64 {
     PI * radius * radius * (1.0 + 2.0 * mu / (radius * v_inf * v_inf))
 }
 
+// ---- Lagrange points --------------------------------------------------------------
+
+/// Routh's limit: in the circular restricted three-body problem L4 and L5
+/// are linearly stable only while `m₂/(m₁+m₂)` is below this value
+/// (Gascheau 1843): `(1 − sqrt(23/27)) / 2`.
+pub const ROUTH_MASS_RATIO: f64 = 0.038_520_896_504_551_38;
+
+/// Barycentric positions of L1, L2 and L3 on the m₁→m₂ axis, in units of the
+/// separation, for mass ratio `mu = m₂/(m₁+m₂)` (m₁ sits at `−μ`, m₂ at
+/// `1 − μ`). Each is the unique root of
+///
+/// ```text
+/// x − (1−μ)(x+μ)/|x+μ|³ − μ(x−1+μ)/|x−1+μ|³ = 0
+/// ```
+///
+/// on its interval, found by bisection (the function is increasing there).
+pub fn collinear_lagrange_points(mu: f64) -> [f64; 3] {
+    let f = |x: f64| {
+        let d1 = x + mu;
+        let d2 = x - 1.0 + mu;
+        x - (1.0 - mu) * d1 / d1.abs().powi(3) - mu * d2 / d2.abs().powi(3)
+    };
+    let bisect = |mut lo: f64, mut hi: f64| {
+        for _ in 0..200 {
+            let mid = 0.5 * (lo + hi);
+            if f(mid) > 0.0 {
+                hi = mid;
+            } else {
+                lo = mid;
+            }
+            if hi - lo < 1e-15 {
+                break;
+            }
+        }
+        0.5 * (lo + hi)
+    };
+    let eps = 1e-12;
+    [bisect(-mu + eps, 1.0 - mu - eps), bisect(1.0 - mu + eps, 3.0 - mu), bisect(-3.0 - mu, -mu - eps)]
+}
+
+/// The five Lagrange points of a primary (`r1`, `m1`) and a secondary (`r2`,
+/// `m2`) on a circular orbit whose angular-momentum direction is `normal`.
+/// Returned in order: L1 (between the two), L2 (beyond the secondary), L3
+/// (opposite the secondary), L4 (60° ahead of the secondary along its
+/// motion) and L5 (60° behind). For an eccentric pair the points are the
+/// instantaneous ones of the osculating circular problem.
+pub fn lagrange_points(r1: Vec3, m1: f64, r2: Vec3, m2: f64, normal: Vec3) -> [Vec3; 5] {
+    let d = r2 - r1;
+    let a = d.norm();
+    let mu = m2 / (m1 + m2);
+    let bary = r1 + d * mu;
+    let x_hat = d / a;
+    let n = normal.reject_from_unit(x_hat).try_normalized().unwrap_or_else(|| x_hat.any_orthonormal());
+    let y_hat = n.cross(x_hat);
+    let [l1, l2, l3] = collinear_lagrange_points(mu);
+    let (s, c) = (PI / 3.0).sin_cos();
+    [bary + x_hat * (l1 * a), bary + x_hat * (l2 * a), bary + x_hat * (l3 * a), r1 + (x_hat * c + y_hat * s) * a, r1 + (x_hat * c - y_hat * s) * a]
+}
+
+/// Velocity of the point `p` when it rides rigidly with the pair
+/// (`r1`, `v1`, `m1`), (`r2`, `v2`, `m2`): the pair's barycentric velocity
+/// plus `ω × (p − r_cm)`, with `ω` the pair's instantaneous orbital angular
+/// velocity. A test mass given this velocity at a Lagrange point stays there
+/// (for as long as the point is stable).
+pub fn corotating_velocity(r1: Vec3, v1: Vec3, m1: f64, r2: Vec3, v2: Vec3, m2: f64, p: Vec3) -> Vec3 {
+    let d = r2 - r1;
+    let omega = d.cross(v2 - v1) / d.norm_sq();
+    let m = m1 + m2;
+    let r_cm = (r1 * m1 + r2 * m2) / m;
+    let v_cm = (v1 * m1 + v2 * m2) / m;
+    v_cm + omega.cross(p - r_cm)
+}
+
+// ---- drawing helpers -------------------------------------------------------------
+
+/// Points along the osculating conic of a body with relative state (`r`, `v`)
+/// about a focus of gravitational parameter `mu`, relative to that focus:
+/// the whole ellipse for a bound orbit, or the branch from the current
+/// position out to distance `r_max` for an unbound one. Empty for the
+/// degenerate (radial or parabolic) cases.
+pub fn conic_points(mu: f64, r: Vec3, v: Vec3, n: usize, r_max: f64) -> Vec<Vec3> {
+    let oe = elements_from_state(mu, r, v);
+    let el = oe.elements;
+    let p = el.semi_latus_rectum();
+    if n < 2 || !el.a.is_finite() || !(p > 0.0) || oe.kind == OrbitKind::Parabolic {
+        return Vec::new();
+    }
+    let nu0 = if el.true_anomaly > PI { el.true_anomaly - 2.0 * PI } else { el.true_anomaly };
+    let nu1 = match oe.kind {
+        OrbitKind::Elliptic => nu0 + 2.0 * PI,
+        _ => ((p / r_max.max(r.norm()) - 1.0) / el.e).clamp(-1.0, 1.0).acos(),
+    };
+    if nu1 <= nu0 {
+        return Vec::new();
+    }
+    (0..n)
+        .map(|k| {
+            let nu = nu0 + (nu1 - nu0) * k as f64 / (n - 1) as f64;
+            let denom = (1.0 + el.e * nu.cos()).max(1e-12);
+            let rr = p / denom;
+            perifocal_to_inertial(&el, Vec3::new(rr * nu.cos(), rr * nu.sin(), 0.0))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -419,6 +524,83 @@ mod tests {
         assert_relative_eq!(hyperbolic_periapsis(mu, 1.0, 0.0), 0.0, epsilon = 1e-15);
         let q = hyperbolic_periapsis(mu, 2.0, 3.0);
         assert_relative_eq!(impact_parameter_for_periapsis(mu, 2.0, q), 3.0, max_relative = 1e-12);
+    }
+
+    /// At every Lagrange point the two gravitational pulls and the
+    /// centrifugal term of the co-rotating frame cancel exactly.
+    #[test]
+    fn lagrange_points_are_equilibria() {
+        for &(m1, m2) in &[(1.0, 1e-3), (1.0, 0.0123), (1.0, 0.3), (2.0, 1.0)] {
+            let a = 1.7;
+            let r1 = Vec3::new(0.3, -0.2, 0.0);
+            let r2 = r1 + Vec3::new(a, 0.0, 0.0);
+            let n2 = (m1 + m2) / (a * a * a); // G = 1
+            let bary = (r1 * m1 + r2 * m2) / (m1 + m2);
+            let pts = lagrange_points(r1, m1, r2, m2, Vec3::Z);
+            for (k, p) in pts.iter().enumerate() {
+                let g1 = (r1 - *p) * (m1 / (r1 - *p).norm().powi(3));
+                let g2 = (r2 - *p) * (m2 / (r2 - *p).norm().powi(3));
+                let centrifugal = (*p - bary) * n2;
+                let residual = (g1 + g2 + centrifugal).norm() / n2 / a;
+                assert!(residual < 1e-9, "m2/m1 = {}: L{} residual {residual}", m2 / m1, k + 1);
+            }
+            // L4 leads: it is 60° from both masses, ahead in the direction of motion (+y for a +z normal).
+            assert_relative_eq!(pts[3].distance(r1), a, max_relative = 1e-12);
+            assert_relative_eq!(pts[3].distance(r2), a, max_relative = 1e-12);
+            assert!(pts[3].y > r1.y && pts[4].y < r1.y);
+        }
+        // Small-μ expansions: L1/L2 at (μ/3)^{1/3} from the secondary, L3 at −1 − 5μ/12.
+        let mu = 1e-4;
+        let [l1, l2, l3] = collinear_lagrange_points(mu);
+        let hill = (mu / 3.0f64).cbrt();
+        assert!(((1.0 - mu - l1) / hill - 1.0).abs() < 0.05, "{l1}");
+        assert!(((l2 - 1.0 + mu) / hill - 1.0).abs() < 0.05, "{l2}");
+        assert!((l3 - (-1.0 - 5.0 * mu / 12.0)).abs() < 1e-6, "{l3}");
+    }
+
+    #[test]
+    fn corotating_velocity_matches_circular_motion() {
+        let (m1, m2, a) = (1.0, 0.01, 2.0);
+        let r1 = Vec3::ZERO;
+        let r2 = Vec3::new(a, 0.0, 0.0);
+        let n = ((m1 + m2) / (a * a * a)).sqrt();
+        let v1 = Vec3::ZERO;
+        let v2 = Vec3::new(0.0, n * a, 0.0);
+        let pts = lagrange_points(r1, m1, r2, m2, Vec3::Z);
+        let bary = r2 * (m2 / (m1 + m2));
+        let v_bary = v2 * (m2 / (m1 + m2));
+        for p in pts {
+            let v = corotating_velocity(r1, v1, m1, r2, v2, m2, p);
+            let expected = v_bary + Vec3::Z.cross(p - bary) * n;
+            assert!((v - expected).norm() < 1e-12 * n * a, "{v} vs {expected}");
+        }
+    }
+
+    #[test]
+    fn conic_points_lie_on_the_orbit() {
+        let mu = 1.0;
+        // Ellipse: every sample has the same specific energy and closes on itself.
+        let (r, v) = (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.2, 0.1));
+        let pts = conic_points(mu, r, v, 200, 1e9);
+        assert_eq!(pts.len(), 200);
+        assert!((pts[0] - r).norm() < 1e-9);
+        assert!((pts[199] - r).norm() < 1e-9);
+        let a = elements_from_state(mu, r, v).elements.a;
+        let p = elements_from_state(mu, r, v).elements.semi_latus_rectum();
+        for q in &pts {
+            let h = r.cross(v);
+            assert!(q.dot(h).abs() < 1e-9, "in the orbital plane");
+            // Conic equation r = p / (1 + e cos ν) ⇔ |q| + e_vec·q = p.
+            let e_vec = (r * (v.norm_sq() - mu / r.norm()) - v * r.dot(v)) / mu;
+            assert_relative_eq!(q.norm() + e_vec.dot(*q), p, max_relative = 1e-9);
+            assert!(q.norm() <= a * 2.0 + 1e-9);
+        }
+        // Hyperbola: runs outward from the current point to about r_max.
+        let (r, v) = (Vec3::new(2.0, 0.0, 0.0), Vec3::new(-0.3, 1.5, 0.0));
+        let pts = conic_points(mu, r, v, 50, 20.0);
+        assert!((pts[0] - r).norm() < 1e-9);
+        assert_relative_eq!(pts[49].norm(), 20.0, max_relative = 1e-6);
+        assert!(conic_points(mu, Vec3::X, Vec3::X, 10, 10.0).is_empty(), "radial orbit has no conic");
     }
 
     #[test]

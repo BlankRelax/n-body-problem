@@ -239,6 +239,20 @@ impl Default for ProjectileFileSpec {
     }
 }
 
+/// Hints for an interactive viewer. The physics ignores them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct ViewSpec {
+    /// Draw the Lagrange points of this `[primary, secondary]` pair of bodies.
+    pub lagrange_points: Option<[String; 2]>,
+    /// Start in the frame that co-rotates with that pair.
+    pub corotating: bool,
+    /// Simulated time the trails should cover, in time units (default: the run's duration).
+    pub trail_span: Option<f64>,
+    /// Initial tilt of the view out of the x-y plane, degrees.
+    pub tilt: Option<f64>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Scenario {
@@ -248,6 +262,7 @@ pub struct Scenario {
     pub simulation: SimulationSpec,
     pub bodies: Vec<BodySpec>,
     pub projectile: Option<ProjectileFileSpec>,
+    pub view: ViewSpec,
 }
 
 /// Everything a scenario resolves to, in SI.
@@ -474,6 +489,7 @@ impl Scenario {
             },
             bodies,
             projectile: None,
+            view: ViewSpec::default(),
         })
     }
 }

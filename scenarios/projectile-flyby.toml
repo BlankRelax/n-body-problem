@@ -57,3 +57,6 @@ direction = [
 ]
 start_distance = 30.0
 max_time = 30.0
+
+[view]
+corotating = false

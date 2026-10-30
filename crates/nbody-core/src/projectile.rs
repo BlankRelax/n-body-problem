@@ -281,6 +281,41 @@ pub fn inject(system: &mut NBodySystem, spec: &ProjectileSpec) -> Result<(BodyId
     Ok((id, tracker))
 }
 
+/// Create a projectile at an explicit position and velocity (a launch from
+/// inside the system rather than an arrival from infinity) and a tracker for
+/// it. The tracker's "incoming" excess speed is the one implied by the launch
+/// energy (zero when the launch is already bound), and an escape is declared
+/// once the projectile has receded beyond the larger of its launch distance
+/// and three times the system's extent.
+pub fn inject_at(
+    system: &mut NBodySystem,
+    name: impl Into<String>,
+    structure: SphericalStructure,
+    position: Vec3,
+    velocity: Vec3,
+) -> Result<(BodyId, ProjectileTracker), ProjectileError> {
+    if system.is_empty() {
+        return Err(ProjectileError::EmptySystem);
+    }
+    let extent = system.extent();
+    let original_ids = system.ids();
+    let body = Body::new(name, structure, position, velocity).with_kind(BodyKind::Projectile);
+    let id = system.add(body);
+    let idx = system.index_of(id).expect("just added");
+    let (eps, r, v, _) = specific_energy_relative(system, idx).ok_or(ProjectileError::EmptySystem)?;
+    let v_inf = if eps > 0.0 { (2.0 * eps).sqrt() } else { 0.0 };
+    let dir = v.try_normalized().unwrap_or(Vec3::X);
+    let start_distance = r.norm().max(3.0 * extent);
+    let mut tracker = ProjectileTracker::new(system, id, original_ids, start_distance, v_inf, dir);
+    tracker.launched = true;
+    // A launch that is not moving inward has, in effect, already had its periapsis.
+    if r.dot(v) >= 0.0 {
+        tracker.periapsis_passages = 1;
+    }
+    tracker.update(system, &[]);
+    Ok((id, tracker))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Phase {
@@ -399,6 +434,10 @@ pub struct ProjectileTracker {
     pub displaced: Vec<String>,
     /// The secondary whose Hill sphere the projectile is currently inside.
     pub encounter_with: Option<String>,
+    /// `true` for a projectile launched from an explicit position inside the
+    /// system ([`inject_at`]) rather than arriving from infinity.
+    #[serde(default)]
+    pub launched: bool,
     initially_bound: Vec<(BodyId, bool)>,
     last_radial_sign: i8,
 }
@@ -463,6 +502,7 @@ impl ProjectileTracker {
             absorbed: Vec::new(),
             displaced: Vec::new(),
             encounter_with: None,
+            launched: false,
             initially_bound,
             last_radial_sign: 0,
         }
@@ -823,6 +863,46 @@ mod tests {
         let q = orbit::hyperbolic_periapsis(1.0, v_inf, b);
         assert_relative_eq!(t.closest_approach, q, max_relative = 1e-3);
         assert!(t.displaced.is_empty());
+    }
+
+    #[test]
+    fn launched_projectiles_are_classified() {
+        let cfg = SimulationConfig {
+            integrator: IntegratorKind::Pefrl,
+            timestep: TimestepPolicy::Adaptive { eta: 0.01, dt_min: 1e-6, dt_max: 0.05 },
+            force: ForceMethod::Direct,
+            collisions: CollisionMode::Physical,
+        };
+        let proj = SphericalStructure::uniform_with_mass(Material::Rock, 1e-9).unwrap();
+        let mut s = NBodySystem::new(1.0);
+        s.add(Body::uniform("M", Material::Iron, 1.0, Vec3::ZERO, Vec3::ZERO).unwrap());
+        // Below the escape speed: a bound orbit, reported with its elements.
+        let mut sim = Simulation::new(s.clone(), cfg.clone());
+        let id = sim.inject_projectile_at("slow", proj.clone(), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 0.5, 0.0)).unwrap();
+        assert!(sim.tracker(id).unwrap().launched);
+        let outcome = sim.run_projectile(200.0);
+        match outcome {
+            Outcome::Captured { elements, .. } => {
+                let expected = elements_from_launch(1.0, Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 0.5, 0.0));
+                assert_relative_eq!(elements.elements.a, expected, max_relative = 1e-3);
+            }
+            other => panic!("expected a bound orbit, got {other:?}"),
+        }
+        // Above it: escapes, and the tracker reports the excess speed.
+        let mut sim = Simulation::new(s, cfg);
+        sim.inject_projectile_at("fast", proj, Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 1.5, 0.0)).unwrap();
+        let outcome = sim.run_projectile(500.0);
+        match outcome {
+            Outcome::Ejected { v_infinity_out, .. } => {
+                let v_inf = (1.5f64 * 1.5 - 2.0 / 2.0).sqrt();
+                assert_relative_eq!(v_infinity_out, v_inf, max_relative = 1e-3);
+            }
+            other => panic!("expected an escape, got {other:?}"),
+        }
+    }
+
+    fn elements_from_launch(mu: f64, r: Vec3, v: Vec3) -> f64 {
+        orbit::elements_from_state(mu, r, v).elements.a
     }
 
     #[test]

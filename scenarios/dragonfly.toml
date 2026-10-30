@@ -1,0 +1,74 @@
+name = "Three-body 'Dragonfly'"
+description = "Šuvakov & Dmitrašinović's periodic orbit 'dragonfly' (period 21.2710): three equal masses, G = 1. Watch one full period draw itself, then another; the published five-digit initial conditions let it wander after several periods."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "none"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 42.542
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.005
+dt_min = 0.000000001
+dt_max = 0.004
+
+[[bodies]]
+name = "A"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    -1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.08058,
+    0.58884,
+    0.0,
+]
+
+[[bodies]]
+name = "B"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.08058,
+    0.58884,
+    0.0,
+]
+
+[[bodies]]
+name = "C"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    0.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    -0.16116,
+    -1.17768,
+    0.0,
+]
+
+[view]
+corotating = false
+trail_span = 21.271

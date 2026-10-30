@@ -1,0 +1,106 @@
+name = "Klemperer rosette"
+description = "Five equal stars at the corners of a regular pentagon, each moving at exactly the speed that makes the pull of the other four hold it on its circle (period 5.356), G = 1. The configuration is an exact solution but an unstable one: rounding errors of one part in 10^16 grow exponentially until, after several turns, the pentagon tears itself apart."
+
+[units]
+length = "m"
+mass = "kg"
+time = "s"
+
+[simulation]
+integrator = "pefrl"
+softening = 0.0
+collisions = "merge"
+force = "direct"
+theta = 0.5
+g = 1.0
+duration = 107.11255636557497
+barycentric = true
+
+[simulation.adaptive]
+eta = 0.005
+dt_min = 0.000000001
+dt_max = 0.005
+
+[[bodies]]
+name = "Star 1"
+kind = "star"
+mass = 1.0
+material = "plasma"
+position = [
+    1.0,
+    0.0,
+    0.0,
+]
+velocity = [
+    0.0,
+    1.173193044844357,
+    0.0,
+]
+
+[[bodies]]
+name = "Star 2"
+kind = "star"
+mass = 1.0
+material = "ice"
+position = [
+    0.30901699437494745,
+    0.9510565162951535,
+    0.0,
+]
+velocity = [
+    -1.1157728901713782,
+    0.36253658853939624,
+    0.0,
+]
+
+[[bodies]]
+name = "Star 3"
+kind = "star"
+mass = 1.0
+material = "gas"
+position = [
+    -0.8090169943749473,
+    0.5877852522924732,
+    0.0,
+]
+velocity = [
+    -0.6895855698516153,
+    -0.9491331109615746,
+    0.0,
+]
+
+[[bodies]]
+name = "Star 4"
+kind = "star"
+mass = 1.0
+material = "water"
+position = [
+    -0.8090169943749475,
+    -0.587785252292473,
+    0.0,
+]
+velocity = [
+    0.6895855698516151,
+    -0.9491331109615748,
+    0.0,
+]
+
+[[bodies]]
+name = "Star 5"
+kind = "star"
+mass = 1.0
+material = "rubber"
+position = [
+    0.30901699437494723,
+    -0.9510565162951536,
+    0.0,
+]
+velocity = [
+    1.1157728901713782,
+    0.3625365885393959,
+    -0.0,
+]
+
+[view]
+corotating = false
+trail_span = 10.711255636557498

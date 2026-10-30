@@ -1,0 +1,148 @@
+name = "Rosette"
+description = "Eight Ceres-mass asteroids on one-year orbits of eccentricity 0.7 about the Sun, each orbit turned by 45 degrees from its neighbour. Over a year their trails draw an eight-petal rosette; the asteroids speed through periapsis at 0.3 au and dawdle at 1.7 au."
+
+[units]
+length = "au"
+mass = "solar"
+time = "year"
+
+[simulation]
+integrator = "yoshida4"
+dt = 0.0005
+softening = 0.0
+collisions = "physical"
+force = "direct"
+theta = 0.5
+duration = 2.0
+barycentric = true
+
+[[bodies]]
+name = "Sun"
+kind = "star"
+mass = 1.0
+radius = 0.004650467260962157
+material = "plasma"
+
+[[bodies]]
+name = "Petal 1"
+kind = "asteroid"
+mass = 0.0000000001
+material = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 0.0
+mean_anomaly = 0.0
+
+[[bodies]]
+name = "Petal 2"
+kind = "asteroid"
+mass = 0.0000000001
+material = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 45.0
+mean_anomaly = 135.0
+
+[[bodies]]
+name = "Petal 3"
+kind = "asteroid"
+mass = 0.0000000001
+material = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 90.0
+mean_anomaly = 270.0
+
+[[bodies]]
+name = "Petal 4"
+kind = "asteroid"
+mass = 0.0000000001
+material = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 135.0
+mean_anomaly = 405.0
+
+[[bodies]]
+name = "Petal 5"
+kind = "asteroid"
+mass = 0.0000000001
+material = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 180.0
+mean_anomaly = 540.0
+
+[[bodies]]
+name = "Petal 6"
+kind = "asteroid"
+mass = 0.0000000001
+material = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 225.0
+mean_anomaly = 675.0
+
+[[bodies]]
+name = "Petal 7"
+kind = "asteroid"
+mass = 0.0000000001
+material = "ice"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 270.0
+mean_anomaly = 810.0
+
+[[bodies]]
+name = "Petal 8"
+kind = "asteroid"
+mass = 0.0000000001
+material = "rock"
+
+[bodies.orbit]
+around = "Sun"
+a = 1.0
+e = 0.7
+inclination = 0.0
+raan = 0.0
+arg_periapsis = 315.0
+mean_anomaly = 945.0
+
+[view]
+corotating = false
+trail_span = 1.0

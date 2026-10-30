@@ -8,6 +8,33 @@
   touch-action: none;
 }
 
+/* Full-screen mode (the ⛶ button or F11 inside the simulator). The box the
+   simulator was started in gets `nbody-host` on start-up and `nbody-fill`
+   while it covers the page; where the browser allows it, the box is also
+   put into real full screen on top of that. */
+
+.nbody-host.nbody-fill {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #08090e;
+}
+
+.nbody-host:fullscreen {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #08090e;
+}
+
 /* The standalone page: the simulator fills the window. */
 
 html,
